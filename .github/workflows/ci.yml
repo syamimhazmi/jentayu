@@ -1,0 +1,86 @@
+name: ci
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  check:
+    name: fmt · clippy · test · release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: fmt
+        run: cargo fmt --check
+
+      - name: clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: test
+        run: cargo test
+
+      - name: release build
+        run: cargo build --release
+
+  coverage:
+    name: llvm-cov (pure modules)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+
+      - name: pure-module coverage
+        run: ./scripts/coverage.sh lcov
+
+      - name: upload lcov
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcov-info
+          path: target/llvm-cov/lcov.info
+
+  mutants:
+    name: cargo-mutants (pure modules)
+    runs-on: ubuntu-latest
+    # Hard-fail on MISSED pure-module mutants (QUALITY.md §5 / PLAN M4).
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-mutants
+
+      - name: mutants
+        run: ./scripts/mutants.sh run
+
+      - name: upload mutants.out
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutants-out
+          path: mutants.out

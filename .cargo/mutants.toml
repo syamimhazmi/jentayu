@@ -1,0 +1,56 @@
+# cargo-mutants configuration for Jentayu (M4).
+# Docs: https://mutants.rs/ — schema: https://json.schemastore.org/cargo-mutants-config.json
+#
+# Focus mutation testing on pure logic; I/O, CLI, and TUI are smoke-covered elsewhere.
+# Override on the CLI with -f / -e as needed.
+
+# Default: pure modules only. Container I/O methods produce noisy field mutants;
+# run `./scripts/mutants.sh container` when changing CPU/blkio/network helpers there.
+examine_globs = [
+    "src/metrics.rs",
+    "src/alert.rs",
+    "src/export/prometheus.rs",
+]
+
+# Never mutate binary wiring or UI (noisy / hard to unit-kill).
+exclude_globs = [
+    "src/main.rs",
+    "src/cli.rs",
+    "src/display/**/*.rs",
+    "src/collector/**/*.rs",
+    "src/export/mod.rs",
+    "src/error.rs",
+    "src/lib.rs",
+]
+
+# Drop print-only helpers inside examined files.
+# Also drop the equivalent `bps < 1.0` → `bps <= 1.0` mutant in format_bps:
+# at exactly 1.0 both the promote-to-1 and round paths yield the same display.
+exclude_re = [
+    "print_alerts",
+    "replace < with <= in format_bps",
+]
+
+# Skip logging / tracing call sites as mutants (not product logic).
+skip_calls = [
+    "tracing::trace",
+    "tracing::debug",
+    "tracing::info",
+    "tracing::warn",
+    "tracing::error",
+    "println",
+    "eprintln",
+]
+
+skip_calls_defaults = true
+
+# Prefer cargo test (no nextest required).
+test_tool = "cargo"
+
+# Avoid false unviable mutants when the tree denies warnings.
+cap_lints = true
+
+# Headroom over auto baseline. Multipliers must stay generous: a lucky-fast
+# baseline can otherwise set a ~10s build timeout that flaked as TIMEOUT under load.
+timeout_multiplier = 3.0
+build_timeout_multiplier = 8.0
