@@ -60,27 +60,4 @@ jobs:
           name: lcov-info
           path: target/llvm-cov/lcov.info
 
-  mutants:
-    name: cargo-mutants (pure modules)
-    runs-on: ubuntu-latest
-    # Hard-fail on MISSED pure-module mutants (QUALITY.md §5 / PLAN M4).
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: dtolnay/rust-toolchain@stable
-
-      - uses: Swatinem/rust-cache@v2
-
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-mutants
-
-      - name: mutants
-        run: ./scripts/mutants.sh run
-
-      - name: upload mutants.out
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: mutants-out
-          path: mutants.out
+  # cargo-mutants is local-only (slow). Run via ./scripts/mutants.sh.
