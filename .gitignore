@@ -1,0 +1,16 @@
+/target
+**/*.rs.bk
+Cargo.lock.bak
+.DS_Store
+*.swp
+/tmp
+*.log
+
+# cargo-mutants
+/mutants.out
+/mutants.out.old
+
+# cargo-llvm-cov (reports under target/ by default; keep extras out of git)
+/lcov.info
+/coverage/
+/cov-report/

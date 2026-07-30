@@ -1,0 +1,59 @@
+[package]
+name = "jentayu"
+version = "0.1.0"
+edition = "2021"
+description = "Jentayu — real-time process & Docker container resource monitor (Nusantara codename)"
+license = "MIT"
+authors = ["TableBlok"]
+readme = "README.md"
+keywords = ["monitor", "docker", "metrics", "prometheus", "tui"]
+categories = ["command-line-utilities", "development-tools"]
+
+[[bin]]
+name = "jentayu"
+path = "src/main.rs"
+
+[lib]
+name = "jentayu"
+path = "src/lib.rs"
+
+[dependencies]
+anyhow = "1.0.104"
+bollard = "0.21.0"
+bytesize = "2.4.2"
+chrono = { version = "0.4.45", features = ["serde"] }
+clap = { version = "4.6.4", features = ["derive"] }
+comfy-table = "7.2.2"
+crossterm = "0.29.0"
+futures-util = "0.3.33"
+ratatui = "0.30.2"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+sysinfo = "0.39.6"
+thiserror = "2.0.19"
+tokio = { version = "1.53.1", features = ["full"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+
+[dev-dependencies]
+# Mock Docker Engine HTTP API for collector integration tests (always-on in CI).
+wiremock = "0.6"
+# Executable Gherkin for high-value pure scenarios under tests/features/.
+cucumber = "0.21"
+futures = "0.3"
+
+[[test]]
+name = "features"
+path = "tests/features_runner.rs"
+harness = false
+
+[features]
+default = []
+# Opt-in live Docker socket smoke tests (`cargo test --features docker-integration`).
+# Tests still no-op skip when the daemon/socket is unavailable.
+docker-integration = []
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
