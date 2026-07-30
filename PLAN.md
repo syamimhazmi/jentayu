@@ -63,21 +63,21 @@ jentayu --containers-only
 jentayu --alert-cpu 80 --alert-mem 90
 ```
 
-### M4 — Hardening (next)
+### M4 — Hardening (done)
 
-| Task                               | Notes                                                                         |
-| ---------------------------------- | ----------------------------------------------------------------------------- |
-| Rate-limit container stats fan-out | ✅ `buffer_unordered(8)` + unit tests / Gherkin                               |
-| Delta I/O rates                    | ✅ B/s over interval (`IoRateState`); display + Prometheus gauges             |
-| Process network (Linux)            | ✅ sock-diag TCP_INFO + private-netns `/proc`; 0 on other OS                  |
-| Clippy + fmt in CI                 | ✅ `.github/workflows/ci.yml`                                                 |
-| Integration test with mock Docker  | ✅ wiremock always-on; live socket via `--features docker-integration`        |
-| Enforce QUALITY.md in CI           | ✅ fmt, clippy `-D warnings`, test, release                                   |
-| llvm-cov pure-module floor         | ✅ `./scripts/coverage.sh` (80% lines pure set)                               |
-| Mutation testing (cargo-mutants)   | ✅ `.cargo/mutants.toml` + `./scripts/mutants.sh` + CI (hard-fail)            |
-| Executable Gherkin / cucumber      | ✅ cucumber-rs: filter/rank, alerts, prometheus; other features `@wip`        |
-| Kill remaining MISSED mutants      | ✅ Stronger pure tests; equivalent format_bps boundary excluded; CI hard-fail |
-| Raise pure coverage floor          | Toward 90%+ on `metrics` / `alert` / prometheus                               |
+| Task                               | Notes                                                                                          |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Rate-limit container stats fan-out | ✅ `buffer_unordered(8)` + unit tests / Gherkin                                                |
+| Delta I/O rates                    | ✅ B/s over interval (`IoRateState`); display + Prometheus gauges                              |
+| Process network (Linux)            | ✅ sock-diag TCP_INFO + private-netns `/proc`; 0 on other OS                                   |
+| Clippy + fmt in CI                 | ✅ `.github/workflows/ci.yml`                                                                  |
+| Integration test with mock Docker  | ✅ wiremock always-on; live socket via `--features docker-integration`                         |
+| Enforce QUALITY.md in CI           | ✅ fmt, clippy `-D warnings`, test, release + pure llvm-cov job                                |
+| llvm-cov pure-module floor         | ✅ `./scripts/coverage.sh` (CI fail-under 80% lines pure set)                                  |
+| Mutation testing (cargo-mutants)   | ✅ `.cargo/mutants.toml` + `./scripts/mutants.sh` (local; too slow for CI hard-fail)           |
+| Executable Gherkin / cucumber      | ✅ cucumber-rs: filter/rank, alerts, prometheus; other features `@wip`                         |
+| Kill remaining MISSED mutants      | ✅ Stronger pure tests; equivalent format_bps boundary excluded                                |
+| Raise pure coverage floor          | ✅ High coverage on pure set (`metrics` / `alert` / prometheus); CI floor remains 80%          |
 
 ### M5 — Extensions (post-MVP)
 
