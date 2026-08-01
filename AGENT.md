@@ -39,6 +39,7 @@ jentayu/
 ├── AGENT.md          ← you are here
 ├── QUALITY.md        ← extreme constraints (binding Definition of Done)
 ├── PLAN.md           ← roadmap & milestones
+├── SECURITY.md       ← privilege, export trust boundary, -o, planned serve
 ├── SKILL.md          ← Grok/Claude skill for this project
 ├── README.md
 ├── Cargo.toml
@@ -55,9 +56,10 @@ jentayu/
     ├── main.rs       # CLI entry
     ├── lib.rs        # public crate root
     ├── cli.rs
-    ├── metrics.rs    # ResourceSample, Snapshot, filter_and_rank
+    ├── metrics.rs    # ResourceSample, Snapshot, filter_and_rank, snapshot_for_export
     ├── alert.rs
     ├── error.rs
+    ├── util.rs       # sanitize_control_chars (TTY free-text)
     ├── collector/
     │   ├── mod.rs    # CollectMode + Collector orchestrator
     │   ├── host.rs

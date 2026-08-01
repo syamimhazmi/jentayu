@@ -8,7 +8,9 @@ use chrono::Utc;
 use cucumber::{given, then, when, World};
 use jentayu::alert::{evaluate, Alert, AlertThresholds};
 use jentayu::export::render_prometheus;
-use jentayu::metrics::{filter_and_rank, HostSample, ResourceSample, Snapshot, SortBy, TargetKind};
+use jentayu::metrics::{
+    filter_and_rank, snapshot_for_export, HostSample, ResourceSample, Snapshot, SortBy, TargetKind,
+};
 
 // ── World ───────────────────────────────────────────────────────────────────
 
@@ -553,6 +555,76 @@ fn then_bytes_per_second(w: &mut JentayuWorld) {
         .prometheus_text
         .lines()
         .any(|l| l.starts_with("jentayu_host_network_receive_bytes_per_second ")));
+}
+
+#[given("a multi-target snapshot for export ranking")]
+fn given_multi_target_export_snapshot(w: &mut JentayuWorld) {
+    // Low-CPU first so collection order differs from CPU rank order.
+    let mut low = process("other", 5.0, 50, 0, 0);
+    low.id = "1".into();
+    let mut mid = process("nginx", 40.0, 100, 0, 0);
+    mid.id = "2".into();
+    let mut high = process("nginx-worker", 90.0, 200, 0, 0);
+    high.id = "3".into();
+    w.snapshot = Some(Snapshot {
+        host: host_with_metrics(),
+        targets: vec![low, mid, high],
+        sampled_at: Utc::now(),
+    });
+}
+
+#[when(regex = r#"^the snapshot is exported with filter "([^"]+)" and top (\d+) sorted by cpu$"#)]
+fn when_export_filter_top(w: &mut JentayuWorld, filter: String, top: usize) {
+    let snap = w
+        .snapshot
+        .as_ref()
+        .expect("snapshot must be given before export");
+    let export = snapshot_for_export(snap, Some(&filter), SortBy::Cpu, Some(top));
+    w.prometheus_text = render_prometheus(&export);
+}
+
+#[then("only matching top-N targets appear in Prometheus text")]
+fn then_only_matching_top_n(w: &mut JentayuWorld) {
+    // Top-1 by CPU among names matching "nginx" → nginx-worker only.
+    assert!(
+        w.prometheus_text.contains("name=\"nginx-worker\""),
+        "expected nginx-worker series: {}",
+        w.prometheus_text
+    );
+    assert!(
+        !w.prometheus_text.contains("name=\"nginx\""),
+        "mid nginx must be excluded by top-1: {}",
+        w.prometheus_text
+    );
+    assert!(
+        !w.prometheus_text.contains("name=\"other\""),
+        "non-matching target must be filtered out: {}",
+        w.prometheus_text
+    );
+}
+
+#[then("host-level metrics remain present")]
+fn then_host_metrics_remain(w: &mut JentayuWorld) {
+    then_host_metrics(w);
+}
+
+#[then("all process/container targets appear in Prometheus text")]
+fn then_all_targets_appear(w: &mut JentayuWorld) {
+    assert!(
+        w.prometheus_text.contains("name=\"other\""),
+        "missing other: {}",
+        w.prometheus_text
+    );
+    assert!(
+        w.prometheus_text.contains("name=\"nginx\""),
+        "missing nginx: {}",
+        w.prometheus_text
+    );
+    assert!(
+        w.prometheus_text.contains("name=\"nginx-worker\""),
+        "missing nginx-worker: {}",
+        w.prometheus_text
+    );
 }
 
 // ── runner ──────────────────────────────────────────────────────────────────
