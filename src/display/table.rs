@@ -1,6 +1,7 @@
 //! Pretty table output for one-shot and watch modes.
 
 use crate::metrics::{filter_and_rank, format_bps_pair, Snapshot, SortBy, TargetKind};
+use crate::util::sanitize_control_chars;
 use bytesize::ByteSize;
 use comfy_table::presets::UTF8_FULL;
 use comfy_table::{Attribute, Cell, Color, ContentArrangement, Table};
@@ -68,17 +69,25 @@ pub fn print_snapshot(
         };
 
         let cpu_cell = colorize_cpu(s.cpu_percent);
+        // Sanitize free-text before truncate so control bytes never reach the TTY.
+        let id = truncate(&sanitize_control_chars(&s.id), 12);
+        let name = truncate(&sanitize_control_chars(&s.name), 28);
+        let status = s
+            .status
+            .as_deref()
+            .map(sanitize_control_chars)
+            .unwrap_or_else(|| "-".into());
 
         table.add_row(vec![
             Cell::new(kind),
-            Cell::new(truncate(&s.id, 12)),
-            Cell::new(truncate(&s.name, 28)),
+            Cell::new(id),
+            Cell::new(name),
             cpu_cell,
             Cell::new(ByteSize::b(s.memory_bytes).to_string()),
             Cell::new(mem_pct),
             Cell::new(disk),
             Cell::new(net),
-            Cell::new(s.status.as_deref().unwrap_or("-")),
+            Cell::new(status),
         ]);
     }
 

@@ -2,6 +2,7 @@
 
 use crate::collector::Collector;
 use crate::metrics::{filter_and_rank, format_bps_pair, Snapshot, SortBy, TargetKind};
+use crate::util::sanitize_control_chars;
 use anyhow::Result;
 use bytesize::ByteSize;
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
@@ -265,23 +266,31 @@ fn draw_table(frame: &mut Frame, area: Rect, app: &mut App) {
             )
         };
 
+        // Sanitize free-text before char-truncate so BEL/CSI never reach the TTY.
+        let id = sanitize_control_chars(&s.id)
+            .chars()
+            .take(12)
+            .collect::<String>();
+        let name = sanitize_control_chars(&s.name)
+            .chars()
+            .take(24)
+            .collect::<String>();
+        let status: String = s
+            .status
+            .as_deref()
+            .map(|st| sanitize_control_chars(st).chars().take(16).collect())
+            .unwrap_or_else(|| "-".into());
+
         Row::new(vec![
             Cell::from(kind),
-            Cell::from(s.id.chars().take(12).collect::<String>()),
-            Cell::from(s.name.chars().take(24).collect::<String>()),
+            Cell::from(id),
+            Cell::from(name),
             Cell::from(format!("{:.1}", s.cpu_percent)).style(cpu_style),
             Cell::from(ByteSize::b(s.memory_bytes).to_string()),
             Cell::from(mem_pct),
             Cell::from(disk),
             Cell::from(net),
-            Cell::from(
-                s.status
-                    .as_deref()
-                    .unwrap_or("-")
-                    .chars()
-                    .take(16)
-                    .collect::<String>(),
-            ),
+            Cell::from(status),
         ])
     });
 

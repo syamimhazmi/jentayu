@@ -18,14 +18,17 @@ pub struct Cli {
     pub command: Option<Commands>,
 
     /// Filter targets by name (substring, case-insensitive).
+    /// Also applies to `prometheus` / `json` when set (with `--top`).
     #[arg(short = 'f', long = "filter", global = true)]
     pub filter: Option<String>,
 
     /// Show only the top N consumers.
+    /// Also applies to `prometheus` / `json` when set (with `--filter`).
     #[arg(short = 'n', long = "top", global = true)]
     pub top: Option<usize>,
 
     /// Sort by metric: cpu, memory, disk, network.
+    /// For export: used only when `--filter` and/or `--top` is set.
     #[arg(short = 's', long = "sort", default_value = "cpu", global = true)]
     pub sort: SortMetric,
 
@@ -70,15 +73,23 @@ pub enum Commands {
     Tui,
 
     /// Export metrics in Prometheus text format.
+    ///
+    /// Global `-f` / `-n` apply ranking when either is set; full per-target
+    /// inventory when neither is set. `-s` is used only when ranking.
+    /// `-o` writes via same-dir temp + rename (same-FS atomic).
     Prometheus {
-        /// Write to file instead of stdout.
+        /// Write to file instead of stdout (same-dir temp + rename; trusted path).
         #[arg(short, long)]
         output: Option<PathBuf>,
     },
 
     /// Export metrics as JSON.
+    ///
+    /// Global `-f` / `-n` apply ranking when either is set; full per-target
+    /// inventory when neither is set. `-s` is used only when ranking.
+    /// `-o` writes via same-dir temp + rename (same-FS atomic).
     Json {
-        /// Write to file instead of stdout.
+        /// Write to file instead of stdout (same-dir temp + rename; trusted path).
         #[arg(short, long)]
         output: Option<PathBuf>,
     },

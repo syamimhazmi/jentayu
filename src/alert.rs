@@ -1,6 +1,11 @@
 //! Threshold-based alerts on collected samples.
+//!
+//! Human `message` strings sanitize process/container names for TTY safety.
+//! Programmatic fields `target_id` / `target_name` stay **raw** (a consumer that
+//! prints `target_name` without sanitizing could still garble a terminal).
 
 use crate::metrics::{ResourceSample, Snapshot};
+use crate::util::sanitize_control_chars;
 use serde::{Deserialize, Serialize};
 
 /// Threshold configuration (all optional; None = disabled).
@@ -64,6 +69,9 @@ pub fn evaluate(snapshot: &Snapshot, thresholds: &AlertThresholds) -> Vec<Alert>
 }
 
 fn evaluate_target(t: &ResourceSample, thresholds: &AlertThresholds, alerts: &mut Vec<Alert>) {
+    // Sanitize display name for message only; keep target_id/target_name raw.
+    let safe_name = sanitize_control_chars(&t.name);
+
     if let Some(cpu_th) = thresholds.cpu_percent {
         if t.cpu_percent >= cpu_th {
             alerts.push(Alert {
@@ -72,7 +80,7 @@ fn evaluate_target(t: &ResourceSample, thresholds: &AlertThresholds, alerts: &mu
                 kind: "cpu".into(),
                 message: format!(
                     "{} CPU {:.1}% >= threshold {:.1}%",
-                    t.name, t.cpu_percent, cpu_th
+                    safe_name, t.cpu_percent, cpu_th
                 ),
                 value: t.cpu_percent,
                 threshold: cpu_th,
@@ -87,7 +95,7 @@ fn evaluate_target(t: &ResourceSample, thresholds: &AlertThresholds, alerts: &mu
                     target_id: t.id.clone(),
                     target_name: t.name.clone(),
                     kind: "memory".into(),
-                    message: format!("{} memory {pct:.1}% >= threshold {mem_th:.1}%", t.name),
+                    message: format!("{} memory {pct:.1}% >= threshold {mem_th:.1}%", safe_name),
                     value: pct,
                     threshold: mem_th,
                 });
@@ -102,7 +110,9 @@ pub fn print_alerts(alerts: &[Alert]) {
     }
     eprintln!("── alerts ({}) ──", alerts.len());
     for a in alerts {
-        eprintln!("  ⚠  [{}] {}", a.kind, a.message);
+        // Belt-and-suspenders: sanitize again on print (idempotent).
+        let msg = sanitize_control_chars(&a.message);
+        eprintln!("  ⚠  [{}] {}", a.kind, msg);
     }
 }
 
@@ -292,5 +302,54 @@ mod tests {
         };
         let th = AlertThresholds::default();
         assert!(evaluate(&snap, &th).is_empty());
+    }
+
+    #[test]
+    fn alert_message_sanitizes_hostile_name_but_keeps_raw_fields() {
+        let hostile = "evil\x1b[31m\x07proc";
+        let snap = Snapshot {
+            host: {
+                let mut h = empty_host();
+                h.cpu_percent = 1.0;
+                h.memory_used_bytes = 1;
+                h.memory_total_bytes = 1000;
+                h
+            },
+            targets: vec![ResourceSample {
+                kind: TargetKind::Process,
+                id: "99".into(),
+                name: hostile.into(),
+                cpu_percent: 95.0,
+                memory_bytes: 800,
+                memory_limit_bytes: Some(1000),
+                disk_read_bytes: 0,
+                disk_write_bytes: 0,
+                net_rx_bytes: 0,
+                net_tx_bytes: 0,
+                disk_read_bps: None,
+                disk_write_bps: None,
+                net_rx_bps: None,
+                net_tx_bps: None,
+                sampled_at: Utc::now(),
+                status: None,
+            }],
+            sampled_at: Utc::now(),
+        };
+        let th = AlertThresholds {
+            cpu_percent: Some(90.0),
+            memory_percent: Some(75.0),
+        };
+        let alerts = evaluate(&snap, &th);
+        assert!(!alerts.is_empty());
+        for a in &alerts {
+            assert!(
+                !a.message.contains('\x1b') && !a.message.contains('\x07'),
+                "message must not contain raw BEL/CSI: {:?}",
+                a.message
+            );
+            // Programmatic fields stay raw for machine consumers.
+            assert_eq!(a.target_name, hostile);
+            assert_eq!(a.target_id, "99");
+        }
     }
 }
