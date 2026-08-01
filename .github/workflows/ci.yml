@@ -60,4 +60,15 @@ jobs:
           name: lcov-info
           path: target/llvm-cov/lcov.info
 
+  supply-chain:
+    name: cargo-deny
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Advisories hard-fail (PLAN M4.5-c). No continue-on-error.
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check
+
   # cargo-mutants is local-only (slow). Run via ./scripts/mutants.sh.

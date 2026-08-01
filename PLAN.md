@@ -149,7 +149,7 @@ Treat M5 network features as a **security milestone**, not only a product milest
 | S6  | Low–Med         | Collection self-DoS           | Full PID refresh; huge export on dense hosts                                | **Should** (default top); **M5-serve** hard cap                      |
 | S7  | Low             | TUI terminal restore          | Panic may leave raw mode / alt screen                                       | **M4.5-b** ✅ shipped                                                |
 | S8  | High (if wrong) | Future `serve` footgun        | Open bind without auth                                                      | **M5-serve** security requirements                                   |
-| S9  | Medium          | Supply chain                  | No deny/audit in CI; `tokio` `full`                                         | **M4.5-c** (Should; before new serve deps)                           |
+| S9  | Medium          | Supply chain                  | No deny/audit in CI; `tokio` `full`                                         | **M4.5-c** ✅ shipped (deny CI + narrow tokio; before serve deps)     |
 
 #### M4.5 decision (locked): export ranking policy
 
@@ -228,8 +228,8 @@ For any free-text printed to a TTY (process/container **name**, **status**, and 
 | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Default `--top` in watch/TUI when unset | e.g. 25–50; once/export unlimited unless `-n`/`-f` (export policy already locked)                                                                                                        |
 | Collection budgets                      | Skip process-net when sort does not need network; document cost                                                                                                                          |
-| CI supply chain (**M4.5-c**)            | `deny.toml` or audit job: advisories fail CI; licenses MIT/Apache/BSD-ish; ban unexpected git deps; Dependabot/Renovate weekly Cargo                                                     |
-| Narrow Tokio features                   | Drop `full`; take rt-multi-thread, macros, time, io-util, sync, … as needed                                                                                                              |
+| CI supply chain (**M4.5-c**)            | ✅ `deny.toml` + CI job: advisories fail CI; licenses MIT/Apache/BSD-ish (+ tree outliers); crates.io-only; Dependabot weekly Cargo/Actions                                              |
+| Narrow Tokio features                   | ✅ Drop `full`; jentayu uses `macros`, `rt-multi-thread`, `time` (bollard unifies net/io-util/sync/fs)                                                                                    |
 | Cross-platform CI                       | **macOS smoke definition:** `macos-latest` job with `cargo test --lib` + `cargo build --release`; skip docker-live; document process-net zeros on non-Linux. Not required for M4.5 Must. |
 | Wire remaining Gherkin `@wip`           | cli_modes, docker-optional per QUALITY.md                                                                                                                                                |
 
@@ -250,7 +250,7 @@ For any free-text printed to a TTY (process/container **name**, **status**, and 
 | **M4.5-a**     | Sanitize + export filter/top when set + atomic `-o` + `SECURITY.md` / README | **Must**                                           |
 | **M4.5-b**     | TUI Drop guard only                                                          | **Must** (do not bundle optional default top here) |
 | **M4.5-b-opt** | Default `--top` in watch/TUI                                                 | Should                                             |
-| **M4.5-c**     | Supply-chain CI + shrink tokio features                                      | Should; **before** adding axum/hyper serve deps    |
+| **M4.5-c**     | Supply-chain CI + shrink tokio features                                      | ✅ Should shipped; **before** adding axum/hyper serve deps |
 
 #### Residual-risk template (if deferring a Must item)
 
@@ -400,6 +400,7 @@ jentayu history --since 1h
 | 2026-07-31 | Versioning: v0.1.0 = MVP without M4.5; M4.5 is pre-serve patch; serve is v0.2.0+.                                                                   |
 | 2026-07-31 | `serve` default bind **127.0.0.1:9105**; never example `0.0.0.0` as default.                                                                        |
 | 2026-08-01 | **M4.5 Must-ship complete** (a + b). M5 kick-off unblocked. Should items (c, b-opt, macOS CI, …) remain optional.                                 |
+| 2026-08-01 | **M4.5-c shipped:** cargo-deny CI (advisories hard-fail), Dependabot weekly, tokio features narrowed (no `full`).                                |
 
 ## Timeline
 
@@ -407,7 +408,7 @@ jentayu history --since 1h
 | ---------------------- | ------------------------------------------------------------------------------------ | ----------------------------------------- |
 | Weeks 1–2 (historical) | M0–M4 MVP + hardening + CI                                                           | Done                                      |
 | M4.5                   | Pre-serve security gate (a sanitize/export/`-o`/docs + b TUI Drop guard)             | **Done** (2026-08-01)                     |
-| Next                   | Optional M4.5 Should (c supply-chain, b-opt default top) **or** M5 `serve`           | Current                                   |
+| Next                   | Optional M4.5 Should (b-opt default top, macOS CI) **or** M5 `serve`                 | Current (c supply-chain done)             |
 | After gate             | M5: `serve` (localhost) → alerts hysteresis → history → dashboard / cgroup as needed | **Unblocked** (Must-ship satisfied)       |
 
 ## Related docs
