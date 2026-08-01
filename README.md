@@ -116,6 +116,15 @@ cargo test
 cargo build --release
 ```
 
+Supply chain (M4.5-c): CI runs `cargo deny check` (advisories hard-fail, license allowlist, crates.io-only). Locally:
+
+```bash
+cargo install cargo-deny --locked
+cargo deny check
+```
+
+Dependabot opens weekly PRs for Cargo and GitHub Actions. See [`deny.toml`](./deny.toml) and [`SECURITY.md`](./SECURITY.md).
+
 Docker collector integration:
 
 - **Always on:** `tests/docker_mock.rs` speaks a wiremock Docker Engine HTTP API (no socket needed).
