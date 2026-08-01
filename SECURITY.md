@@ -1,7 +1,7 @@
 # Security notes — Jentayu
 
 Privilege, disclosure, and trust-boundary guidance for operators and agents.
-Product roadmap context: [`PLAN.md`](./PLAN.md) (M4.5 / M5).
+Product roadmap context: [`PLAN.md`](./PLAN.md) (M4.5 done; M5 next).
 
 ## Privilege model
 
@@ -21,12 +21,12 @@ networks without an explicit design (auth, bind policy, cardinality caps).
 
 ## Export ranking policy (`prometheus` / `json`)
 
-| Flags | Export targets |
-| ----- | -------------- |
-| Neither `-f` / `--filter` nor `-n` / `--top` | **Full** per-target inventory (sensitive on dense hosts) |
-| `-f` and/or `-n` | Same ranking as table (`filter_and_rank`); `-s` / `--sort` applies |
-| Host-level metrics | **Always** included |
-| Alerts (`--alert-cpu` / `--alert-mem`) | Evaluated on the **full** collected snapshot, not the export subset |
+| Flags                                        | Export targets                                                      |
+| -------------------------------------------- | ------------------------------------------------------------------- |
+| Neither `-f` / `--filter` nor `-n` / `--top` | **Full** per-target inventory (sensitive on dense hosts)            |
+| `-f` and/or `-n`                             | Same ranking as table (`filter_and_rank`); `-s` / `--sort` applies  |
+| Host-level metrics                           | **Always** included                                                 |
+| Alerts (`--alert-cpu` / `--alert-mem`)       | Evaluated on the **full** collected snapshot, not the export subset |
 
 There is no `--all-targets` flag in M4.5. Full dump without filter/top is
 intentional and **sensitive** — prefer `-n` / `-f` when sharing scrapes.
@@ -61,15 +61,15 @@ When HTTP scrape lands, the **default bind must be `127.0.0.1`** (loopback),
 not all interfaces. Metrics remain confidential inventory. See PLAN.md M5
 security requirements (cardinality cap, timeouts, auth before non-localhost).
 
-## Residual risks (accepted for M4.5-a)
+## Residual risks (accepted for M4.5)
 
-| Risk | Note |
-| ---- | ---- |
-| Cross-device `rename` | Documented; same-dir temp mitigates same-FS case |
-| Concurrent `-o` same path | Last writer wins; CLI single-user assumption |
-| Full export without `-f`/`-n` | Intentional; documented sensitive |
-| Raw `Alert.target_name` | Message + `print_alerts` sanitized; field stays raw |
-| TUI panic restore | M4.5-b Drop guard (not this slice) |
+| Risk                          | Note                                                                                                                                                                                       |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Cross-device `rename`         | Documented; same-dir temp mitigates same-FS case                                                                                                                                           |
+| Concurrent `-o` same path     | Last writer wins; CLI single-user assumption                                                                                                                                               |
+| Full export without `-f`/`-n` | Intentional; documented sensitive                                                                                                                                                          |
+| Raw `Alert.target_name`       | Message + `print_alerts` sanitized; field stays raw                                                                                                                                        |
+| TUI panic restore             | **Shipped (M4.5-b):** Drop → `ratatui::restore`; `try_init` installs panic hook. Residual: `panic=abort` skips Drop (hook still runs if installed); restore failures only logged to stderr |
 
 ## See also
 
