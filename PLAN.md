@@ -44,7 +44,7 @@ Crates.io / git tags: optional until first public release; prefer semver above.
 - [x] Export trust boundary (filter/top policy locked below)
 - [x] `-o` atomic write + docs
 - [x] `SECURITY.md` + README link
-- [ ] TUI Drop guard (terminal restore)
+- [x] TUI Drop guard (terminal restore)
 
 ### Later (not blocking M4.5)
 
@@ -109,7 +109,7 @@ jentayu --alert-cpu 80 --alert-mem 90
 | Kill remaining MISSED mutants      | ✅ Stronger pure tests; equivalent format_bps boundary excluded                       |
 | Raise pure coverage floor          | ✅ High coverage on pure set (`metrics` / `alert` / prometheus); CI floor remains 80% |
 
-### M4.5 — Pre-M5 security & trust-boundary hardening (required before M5 kick-off)
+### M4.5 — Pre-M5 security & trust-boundary hardening (done — gate open for M5)
 
 > **Gate:** Do not start network-facing M5 work (`serve`, webhooks, dashboard) until the **Must ship** items below are done (or each skip has a written residual-risk note using the template at the end of this section).
 >
@@ -147,7 +147,7 @@ Treat M5 network features as a **security milestone**, not only a product milest
 | S4  | Low             | Terminal / ANSI injection     | Names/status printed without stripping control chars                        | **M4.5-a** (sanitize)                                                |
 | S5  | Low             | Linux process_net unsafe      | Hand-rolled netlink; no recv timeout; fragile ABI                           | **Deferred** (next process-net touch)                                |
 | S6  | Low–Med         | Collection self-DoS           | Full PID refresh; huge export on dense hosts                                | **Should** (default top); **M5-serve** hard cap                      |
-| S7  | Low             | TUI terminal restore          | Panic may leave raw mode / alt screen                                       | **M4.5-b**                                                           |
+| S7  | Low             | TUI terminal restore          | Panic may leave raw mode / alt screen                                       | **M4.5-b** ✅ shipped                                                |
 | S8  | High (if wrong) | Future `serve` footgun        | Open bind without auth                                                      | **M5-serve** security requirements                                   |
 | S9  | Medium          | Supply chain                  | No deny/audit in CI; `tokio` `full`                                         | **M4.5-c** (Should; before new serve deps)                           |
 
@@ -219,7 +219,7 @@ For any free-text printed to a TTY (process/container **name**, **status**, and 
    - Full export when no `-f`/`-n` is sensitive
    - `-o` overwrite / trusted path only
    - Planned `serve` default bind `127.0.0.1` (not all interfaces)
-5. **TUI Drop guard** — always restore terminal (raw mode + leave alternate screen) on panic/early exit.
+5. **TUI Drop guard** — ✅ always restore terminal (raw mode + leave alternate screen) on panic/early exit (`TerminalRestoreGuard` + `try_init`).
 6. **M5 security requirements** in this plan remain accurate for implementers (below).
 
 #### Should ship soon (can overlap early M5 if residual risk written)
@@ -265,7 +265,7 @@ Signed off in PR:
 
 ### M5 — Extensions (post-MVP; after M4.5 gate)
 
-**Kick-off rule:** M4.5 **Must ship** checklist complete (or residual risks written in the PR that opens M5).
+**Kick-off rule:** M4.5 **Must ship** checklist complete (or residual risks written in the PR that opens M5). **Status: gate open** (Must-ship done 2026-08-01; Should items optional).
 
 Recommended product order (security-aware):
 
@@ -356,7 +356,7 @@ jentayu history --since 1h
 | Bollard API churn                         | Pin version; wrap in thin adapter                                              |
 | Supply-chain / dep advisories             | M4.5-c deny/audit; minimal tokio features                                      |
 | Hand-rolled netlink fragility             | Soft-fail; deferred crate / recv timeout                                       |
-| TUI panic leaves broken terminal          | M4.5-b Drop guard                                                              |
+| TUI panic leaves broken terminal          | M4.5-b Drop guard ✅ shipped                                                   |
 
 ## Definition of done for v0.1.0 (MVP tag)
 
@@ -366,15 +366,15 @@ jentayu history --since 1h
 4. `cargo run -- tui` navigable without panic
 5. README documents install, CLI, and codename story
 
-## Definition of done for M4.5 (pre-M5 gate)
+## Definition of done for M4.5 (pre-M5 gate) — **met 2026-08-01**
 
-1. Sanitize rule implemented + unit tests (table/watch/alert paths)
-2. Export policy implemented (filter/top when set; full when unset) + unit tests + Gherkin (`prometheus_export` / json) + `tests/features/README.md` map
-3. Atomic `-o` write + docs (trusted path / overwrite)
-4. `SECURITY.md` with required bullets + README link; README CI/mutants claims accurate
-5. TUI always restores terminal on exit/panic
-6. Any deferred Must item has residual-risk note (template above)
-7. QUALITY.md checklist for the change set (fmt, clippy `-D warnings`, test, smoke; coverage/mutants if pure helpers touched)
+1. [x] Sanitize rule implemented + unit tests (table/watch/alert paths)
+2. [x] Export policy implemented (filter/top when set; full when unset) + unit tests + Gherkin (`prometheus_export` / json) + `tests/features/README.md` map
+3. [x] Atomic `-o` write + docs (trusted path / overwrite)
+4. [x] `SECURITY.md` with required bullets + README link; README CI/mutants claims accurate
+5. [x] TUI always restores terminal on exit/panic (`TerminalRestoreGuard` + `try_init`)
+6. [x] No deferred Must items (S5 netlink / S6 budgets / S9 supply-chain remain Should or deferred)
+7. [x] QUALITY.md checklist for the change set (fmt, clippy `-D warnings`, test; pure helpers covered under M4.5-a)
 
 ## Open questions
 
@@ -399,14 +399,16 @@ jentayu history --since 1h
 | 2026-07-31 | Docs: ship `SECURITY.md` + README link (not README-only buried note).                                                                               |
 | 2026-07-31 | Versioning: v0.1.0 = MVP without M4.5; M4.5 is pre-serve patch; serve is v0.2.0+.                                                                   |
 | 2026-07-31 | `serve` default bind **127.0.0.1:9105**; never example `0.0.0.0` as default.                                                                        |
+| 2026-08-01 | **M4.5 Must-ship complete** (a + b). M5 kick-off unblocked. Should items (c, b-opt, macOS CI, …) remain optional.                                 |
 
 ## Timeline
 
-| Phase                  | Focus                                                                                | Status          |
-| ---------------------- | ------------------------------------------------------------------------------------ | --------------- |
-| Weeks 1–2 (historical) | M0–M4 MVP + hardening + CI                                                           | Done            |
-| Next                   | **M4.5** Must-ship (a + b); optional c / b-opt                                       | Current         |
-| After gate             | M5: `serve` (localhost) → alerts hysteresis → history → dashboard / cgroup as needed | Blocked on M4.5 |
+| Phase                  | Focus                                                                                | Status                                    |
+| ---------------------- | ------------------------------------------------------------------------------------ | ----------------------------------------- |
+| Weeks 1–2 (historical) | M0–M4 MVP + hardening + CI                                                           | Done                                      |
+| M4.5                   | Pre-serve security gate (a sanitize/export/`-o`/docs + b TUI Drop guard)             | **Done** (2026-08-01)                     |
+| Next                   | Optional M4.5 Should (c supply-chain, b-opt default top) **or** M5 `serve`           | Current                                   |
+| After gate             | M5: `serve` (localhost) → alerts hysteresis → history → dashboard / cgroup as needed | **Unblocked** (Must-ship satisfied)       |
 
 ## Related docs
 
