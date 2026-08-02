@@ -149,7 +149,7 @@ Treat M5 network features as a **security milestone**, not only a product milest
 | S6  | Low–Med         | Collection self-DoS           | Full PID refresh; huge export on dense hosts                                | **Should** (default top); **M5-serve** hard cap                      |
 | S7  | Low             | TUI terminal restore          | Panic may leave raw mode / alt screen                                       | **M4.5-b** ✅ shipped                                                |
 | S8  | High (if wrong) | Future `serve` footgun        | Open bind without auth                                                      | **M5-serve** security requirements                                   |
-| S9  | Medium          | Supply chain                  | No deny/audit in CI; `tokio` `full`                                         | **M4.5-c** ✅ shipped (deny CI + narrow tokio; before serve deps)     |
+| S9  | Medium          | Supply chain                  | No deny/audit in CI; `tokio` `full`                                         | **M4.5-c** ✅ shipped (deny CI + narrow tokio; before serve deps)    |
 
 #### M4.5 decision (locked): export ranking policy
 
@@ -208,19 +208,19 @@ For any free-text printed to a TTY (process/container **name**, **status**, and 
 | Smoke   | `cargo run -- prometheus -n 3 -f …`; `cargo run -- json -n 3`; once/table still works; TUI quit restores terminal                                                                     |
 | Pure QA | If helpers land in pure modules: `./scripts/coverage.sh` + `./scripts/mutants.sh in-diff` (or module run) before claiming done                                                        |
 
-#### Must ship before M5 kick-off
+#### Must ship before M5 kick-off — **done (2026-08-01)**
 
-1. **Display sanitization** — rule above on table, watch, and alert print paths.
-2. **Export trust boundary** — locked policy (filter/top when set; full dump when unset + docs).
-3. **`-o` atomic write** — mandatory temp + rename; docs on trust/overwrite.
-4. **`SECURITY.md` + README link** — required bullets:
+1. [x] **Display sanitization** — rule above on table, watch, and alert print paths.
+2. [x] **Export trust boundary** — locked policy (filter/top when set; full dump when unset + docs).
+3. [x] **`-o` atomic write** — mandatory temp + rename; docs on trust/overwrite.
+4. [x] **`SECURITY.md` + README link** — required bullets:
    - Docker socket ≈ root; read-only list/stats only; no lifecycle control
    - Process names / PIDs / container names are confidential inventory
    - Full export when no `-f`/`-n` is sensitive
    - `-o` overwrite / trusted path only
    - Planned `serve` default bind `127.0.0.1` (not all interfaces)
-5. **TUI Drop guard** — ✅ always restore terminal (raw mode + leave alternate screen) on panic/early exit (`TerminalRestoreGuard` + `try_init`).
-6. **M5 security requirements** in this plan remain accurate for implementers (below).
+5. [x] **TUI Drop guard** — always restore terminal (raw mode + leave alternate screen) on panic/early exit (`TerminalRestoreGuard` + `try_init`).
+6. [x] **M5 security requirements** in this plan remain accurate for implementers (below).
 
 #### Should ship soon (can overlap early M5 if residual risk written)
 
@@ -229,7 +229,7 @@ For any free-text printed to a TTY (process/container **name**, **status**, and 
 | Default `--top` in watch/TUI when unset | e.g. 25–50; once/export unlimited unless `-n`/`-f` (export policy already locked)                                                                                                        |
 | Collection budgets                      | Skip process-net when sort does not need network; document cost                                                                                                                          |
 | CI supply chain (**M4.5-c**)            | ✅ `deny.toml` + CI job: advisories fail CI; licenses MIT/Apache/BSD-ish (+ tree outliers); crates.io-only; Dependabot weekly Cargo/Actions                                              |
-| Narrow Tokio features                   | ✅ Drop `full`; jentayu uses `macros`, `rt-multi-thread`, `time` (bollard unifies net/io-util/sync/fs)                                                                                    |
+| Narrow Tokio features                   | ✅ Drop `full`; jentayu uses `macros`, `rt-multi-thread`, `time` (bollard unifies net/io-util/sync/fs)                                                                                   |
 | Cross-platform CI                       | **macOS smoke definition:** `macos-latest` job with `cargo test --lib` + `cargo build --release`; skip docker-live; document process-net zeros on non-Linux. Not required for M4.5 Must. |
 | Wire remaining Gherkin `@wip`           | cli_modes, docker-optional per QUALITY.md                                                                                                                                                |
 
@@ -245,11 +245,11 @@ For any free-text printed to a TTY (process/container **name**, **status**, and 
 
 #### Suggested PR slices (M4.5)
 
-| PR             | Focus                                                                        | Gate role                                          |
-| -------------- | ---------------------------------------------------------------------------- | -------------------------------------------------- |
-| **M4.5-a**     | Sanitize + export filter/top when set + atomic `-o` + `SECURITY.md` / README | **Must**                                           |
-| **M4.5-b**     | TUI Drop guard only                                                          | **Must** (do not bundle optional default top here) |
-| **M4.5-b-opt** | Default `--top` in watch/TUI                                                 | Should                                             |
+| PR             | Focus                                                                        | Gate role                                                  |
+| -------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| **M4.5-a**     | Sanitize + export filter/top when set + atomic `-o` + `SECURITY.md` / README | **Must**                                                   |
+| **M4.5-b**     | TUI Drop guard only                                                          | **Must** (do not bundle optional default top here)         |
+| **M4.5-b-opt** | Default `--top` in watch/TUI                                                 | Should                                                     |
 | **M4.5-c**     | Supply-chain CI + shrink tokio features                                      | ✅ Should shipped; **before** adding axum/hyper serve deps |
 
 #### Residual-risk template (if deferring a Must item)
@@ -399,17 +399,17 @@ jentayu history --since 1h
 | 2026-07-31 | Docs: ship `SECURITY.md` + README link (not README-only buried note).                                                                               |
 | 2026-07-31 | Versioning: v0.1.0 = MVP without M4.5; M4.5 is pre-serve patch; serve is v0.2.0+.                                                                   |
 | 2026-07-31 | `serve` default bind **127.0.0.1:9105**; never example `0.0.0.0` as default.                                                                        |
-| 2026-08-01 | **M4.5 Must-ship complete** (a + b). M5 kick-off unblocked. Should items (c, b-opt, macOS CI, …) remain optional.                                 |
-| 2026-08-01 | **M4.5-c shipped:** cargo-deny CI (advisories hard-fail), Dependabot weekly, tokio features narrowed (no `full`).                                |
+| 2026-08-01 | **M4.5 Must-ship complete** (a + b). M5 kick-off unblocked. Should items (c, b-opt, macOS CI, …) remain optional.                                   |
+| 2026-08-01 | **M4.5-c shipped:** cargo-deny CI (advisories hard-fail), Dependabot weekly, tokio features narrowed (no `full`).                                   |
 
 ## Timeline
 
-| Phase                  | Focus                                                                                | Status                                    |
-| ---------------------- | ------------------------------------------------------------------------------------ | ----------------------------------------- |
-| Weeks 1–2 (historical) | M0–M4 MVP + hardening + CI                                                           | Done                                      |
-| M4.5                   | Pre-serve security gate (a sanitize/export/`-o`/docs + b TUI Drop guard)             | **Done** (2026-08-01)                     |
-| Next                   | Optional M4.5 Should (b-opt default top, macOS CI) **or** M5 `serve`                 | Current (c supply-chain done)             |
-| After gate             | M5: `serve` (localhost) → alerts hysteresis → history → dashboard / cgroup as needed | **Unblocked** (Must-ship satisfied)       |
+| Phase                  | Focus                                                                                | Status                              |
+| ---------------------- | ------------------------------------------------------------------------------------ | ----------------------------------- |
+| Weeks 1–2 (historical) | M0–M4 MVP + hardening + CI                                                           | Done                                |
+| M4.5                   | Pre-serve security gate (a sanitize/export/`-o`/docs + b TUI Drop guard)             | **Done** (2026-08-01)               |
+| Next                   | Optional M4.5 Should (b-opt default top, macOS CI) **or** M5 `serve`                 | Current (c supply-chain done)       |
+| After gate             | M5: `serve` (localhost) → alerts hysteresis → history → dashboard / cgroup as needed | **Unblocked** (Must-ship satisfied) |
 
 ## Related docs
 
