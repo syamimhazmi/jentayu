@@ -18,6 +18,18 @@ Optional capabilities: name filter, top-N consumers, Prometheus export, threshol
 
 Source of product intent: `../CONTAINER_RESOURCE_MONITOR_MVP.md`.
 
+## Branches (git)
+
+| Branch     | Role                                                                 |
+| ---------- | -------------------------------------------------------------------- |
+| **carbon** | Staging — default integration line. Open feature PRs **into `carbon`**. |
+| **master** | Production — promote from `carbon` only when ready to ship.          |
+
+- Do **not** open feature/fix PRs against `master` unless the user explicitly asks for a prod hotfix.
+- Do **not** push directly to `carbon` or `master` when branch protection requires a PR (use a topic branch → PR → `carbon`).
+- Release tags (e.g. `v0.1.0`) should land on the commit intended for prod; promote `carbon` → `master` before or with the public release as the user directs.
+- Topic branch names stay free-form (e.g. `m5-a/serve-metrics`); base them on current `carbon`.
+
 ## Stack (do not casually replace)
 
 | Layer                | Choice              |
@@ -241,3 +253,4 @@ Documented in `PLAN.md`:
 
 - Imperative mood: `Add container CPU percent calculation`
 - Reference the milestone when relevant: `M2: export Prometheus text format`
+- Default PR base: **`carbon`** (staging), not `master` (prod) — see **Branches** above
