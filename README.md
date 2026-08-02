@@ -47,13 +47,27 @@ jentayu --help
 | `jentayu prometheus [-o file]` | Prometheus exposition format |
 | `jentayu json [-o file]`       | JSON snapshot                |
 
+### Export ranking (`prometheus` / `json`)
+
+| Flags | What is exported |
+| ----- | ---------------- |
+| Neither `-f` nor `-n` | Full per-target inventory (**sensitive** on dense hosts) |
+| `-f` and/or `-n` | Same filter/top ranking as table; `-s` applies for order before top-N |
+| Host metrics | Always included |
+| Alerts | Still evaluated on the **full** collected snapshot |
+
+`-o` writes via same-directory temp + `rename` (atomic on the same filesystem).
+Destination path must be **trusted** (root + untrusted `-o` is unsupported).
+
+See [SECURITY.md](./SECURITY.md) for privilege and disclosure details.
+
 ### Global flags
 
 | Flag                   | Meaning                                |
 | ---------------------- | -------------------------------------- |
-| `-f, --filter <name>`  | Substring filter (case-insensitive)    |
-| `-n, --top <N>`        | Keep top N after sort                  |
-| `-s, --sort <metric>`  | `cpu` · `memory` · `disk` · `network`  |
+| `-f, --filter <name>`  | Substring filter (case-insensitive); also ranks prometheus/json when set |
+| `-n, --top <N>`        | Keep top N after sort; also ranks prometheus/json when set |
+| `-s, --sort <metric>`  | `cpu` · `memory` · `disk` · `network` (export: only when `-f`/`-n` set) |
 | `-i, --interval <sec>` | Watch/TUI refresh interval (default 2) |
 | `--containers-only`    | Skip host processes                    |
 | `--no-processes`       | Same as containers-focused host view   |
@@ -78,6 +92,7 @@ jentayu --help
 | [AGENT.md](./AGENT.md)               | Instructions for AI agents                               |
 | [QUALITY.md](./QUALITY.md)           | Extreme quality constraints (binding Definition of Done) |
 | [PLAN.md](./PLAN.md)                 | Roadmap & milestones                                     |
+| [SECURITY.md](./SECURITY.md)         | Security notes (privilege, export, `-o`, planned serve)  |
 | [SKILL.md](./SKILL.md)               | Grok/Claude skill definition                             |
 | [tests/features/](./tests/features/) | Gherkin behavior scenarios                               |
 
@@ -101,6 +116,15 @@ cargo test
 cargo build --release
 ```
 
+Supply chain (M4.5-c): CI runs `cargo deny check` (advisories hard-fail, license allowlist, crates.io-only). Locally:
+
+```bash
+cargo install cargo-deny --locked
+cargo deny check
+```
+
+Dependabot opens weekly PRs for Cargo and GitHub Actions. See [`deny.toml`](./deny.toml) and [`SECURITY.md`](./SECURITY.md).
+
 Docker collector integration:
 
 - **Always on:** `tests/docker_mock.rs` speaks a wiremock Docker Engine HTTP API (no socket needed).
@@ -122,7 +146,9 @@ cargo install cargo-llvm-cov cargo-mutants --locked
 ./scripts/mutants.sh list    # list mutants without running
 ```
 
-CI (`.github/workflows/ci.yml`) runs fmt, clippy, tests, release build, pure llvm-cov, and mutants.
+CI (`.github/workflows/ci.yml`) runs fmt, clippy, tests, release build, and pure
+llvm-cov. Mutation testing (`./scripts/mutants.sh`) is **local-only** (too slow
+for CI hard-fail).
 
 ## Prometheus sample
 

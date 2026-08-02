@@ -10,6 +10,7 @@ examine_globs = [
     "src/metrics.rs",
     "src/alert.rs",
     "src/export/prometheus.rs",
+    "src/util.rs",
 ]
 
 # Never mutate binary wiring or UI (noisy / hard to unit-kill).

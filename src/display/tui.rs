@@ -2,20 +2,27 @@
 
 use crate::collector::Collector;
 use crate::metrics::{filter_and_rank, format_bps_pair, Snapshot, SortBy, TargetKind};
+use crate::util::sanitize_control_chars;
 use anyhow::Result;
 use bytesize::ByteSize;
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
-use crossterm::terminal::{
-    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
-};
-use crossterm::{execute, ExecutableCommand};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Cell, Paragraph, Row, Table, TableState};
 use ratatui::{DefaultTerminal, Frame};
-use std::io::{self, stdout};
 use std::time::{Duration, Instant};
+
+/// Ensures raw mode is disabled and the alternate screen is left on any exit
+/// (Ok, Err, or panic unwind). Safe if `restore` runs more than once.
+struct TerminalRestoreGuard;
+
+impl Drop for TerminalRestoreGuard {
+    fn drop(&mut self) {
+        // Order is owned by ratatui: disable raw, then leave alt screen.
+        ratatui::restore();
+    }
+}
 
 pub struct TuiConfig {
     pub interval: Duration,
@@ -55,17 +62,11 @@ impl App {
 }
 
 pub async fn run_tui(mut collector: Collector, config: TuiConfig) -> Result<()> {
-    enable_raw_mode()?;
-    stdout().execute(EnterAlternateScreen)?;
-    let mut terminal = ratatui::init();
-
-    let result = run_loop(&mut terminal, &mut collector, config).await;
-
-    disable_raw_mode()?;
-    execute!(io::stdout(), LeaveAlternateScreen)?;
-    ratatui::restore();
-
-    result
+    // Guard first: if try_init partially enables raw/alt then returns Err,
+    // Drop still restores. Panic path also covered by ratatui's hook + this Drop.
+    let _guard = TerminalRestoreGuard;
+    let mut terminal = ratatui::try_init()?;
+    run_loop(&mut terminal, &mut collector, config).await
 }
 
 async fn run_loop(
@@ -265,23 +266,31 @@ fn draw_table(frame: &mut Frame, area: Rect, app: &mut App) {
             )
         };
 
+        // Sanitize free-text before char-truncate so BEL/CSI never reach the TTY.
+        let id = sanitize_control_chars(&s.id)
+            .chars()
+            .take(12)
+            .collect::<String>();
+        let name = sanitize_control_chars(&s.name)
+            .chars()
+            .take(24)
+            .collect::<String>();
+        let status: String = s
+            .status
+            .as_deref()
+            .map(|st| sanitize_control_chars(st).chars().take(16).collect())
+            .unwrap_or_else(|| "-".into());
+
         Row::new(vec![
             Cell::from(kind),
-            Cell::from(s.id.chars().take(12).collect::<String>()),
-            Cell::from(s.name.chars().take(24).collect::<String>()),
+            Cell::from(id),
+            Cell::from(name),
             Cell::from(format!("{:.1}", s.cpu_percent)).style(cpu_style),
             Cell::from(ByteSize::b(s.memory_bytes).to_string()),
             Cell::from(mem_pct),
             Cell::from(disk),
             Cell::from(net),
-            Cell::from(
-                s.status
-                    .as_deref()
-                    .unwrap_or("-")
-                    .chars()
-                    .take(16)
-                    .collect::<String>(),
-            ),
+            Cell::from(status),
         ])
     });
 
@@ -330,4 +339,17 @@ fn draw_footer(frame: &mut Frame, area: Rect, app: &App) {
         Style::default().fg(Color::DarkGray)
     };
     frame.render_widget(Paragraph::new(msg).style(style), area);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::TerminalRestoreGuard;
+
+    /// Drop must not panic when restore runs outside a live TUI session
+    /// (no raw mode / alt screen). Does not assert real TTY state.
+    #[test]
+    fn terminal_restore_guard_drop_is_panic_free() {
+        let guard = TerminalRestoreGuard;
+        drop(guard);
+    }
 }

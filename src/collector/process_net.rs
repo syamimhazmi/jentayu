@@ -128,7 +128,10 @@ pub fn aggregate_bytes_by_pid(
 ///
 /// Header lines and malformed rows return `None`. Inode is field index 9
 /// (0-based) after splitting on whitespace (standard proc net table layout).
-#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+///
+/// Pure helper kept for tests and future proc-table fallbacks; the live Linux
+/// path uses sock-diag, so production code does not call this yet.
+#[allow(dead_code)]
 pub fn parse_proc_net_table_inode(line: &str) -> Option<u64> {
     let line = line.trim();
     if line.is_empty() || line.starts_with("sl") || line.starts_with("Num") {
@@ -143,7 +146,9 @@ pub fn parse_proc_net_table_inode(line: &str) -> Option<u64> {
 }
 
 /// Collect unique non-zero inodes from a full `/proc/net/*` table body.
-#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+///
+/// See [`parse_proc_net_table_inode`]: pure helper, not on the live sock-diag path.
+#[allow(dead_code)]
 pub fn parse_proc_net_table_inodes(content: &str) -> Vec<u64> {
     let mut out = Vec::new();
     for line in content.lines() {

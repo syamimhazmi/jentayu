@@ -26,7 +26,7 @@ Adding a new executable scenario: write/adjust the `.feature` step text, impleme
 | ------------ | -------------- | ------------------- |
 | `filter_and_rank.feature` | filter, sort, top-N | **cucumber** + `tests/filter_rank.rs` + `src/metrics.rs` unit tests |
 | `alerts.feature` | CPU/memory thresholds | **cucumber** + `src/alert.rs` unit tests |
-| `prometheus_export.feature` | `jentayu_*` exposition | **cucumber** + `src/export/prometheus.rs` unit tests |
+| `prometheus_export.feature` | `jentayu_*` exposition; filter/top export ranking; full inventory when unset | **cucumber** + `src/export/prometheus.rs` + `snapshot_for_export` unit tests |
 | `cli_modes.feature` | once / watch / tui / prometheus / json | `@wip` — manual smoke + future CLI integration tests |
 | `docker_optional.feature` | daemon down still monitors processes | `@wip` — `tests/docker_mock.rs` (`disabled_docker_*`, `containers_only_with_disabled_*`) |
 | `docker_integration.feature` | mock Docker list/stats; optional live socket | `@wip` — `tests/docker_mock.rs`; `tests/docker_live.rs` (`--features docker-integration`) |

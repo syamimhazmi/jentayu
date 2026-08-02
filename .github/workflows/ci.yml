@@ -14,7 +14,7 @@ jobs:
     name: fmt · clippy · test · release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -38,7 +38,7 @@ jobs:
     name: llvm-cov (pure modules)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -46,7 +46,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      - uses: taiki-e/install-action@v2
+      - uses: taiki-e/install-action@v2.85.4
         with:
           tool: cargo-llvm-cov
 
@@ -55,32 +55,20 @@ jobs:
 
       - name: upload lcov
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: lcov-info
           path: target/llvm-cov/lcov.info
 
-  mutants:
-    name: cargo-mutants (pure modules)
+  supply-chain:
+    name: cargo-deny
     runs-on: ubuntu-latest
-    # Hard-fail on MISSED pure-module mutants (QUALITY.md §5 / PLAN M4).
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: dtolnay/rust-toolchain@stable
-
-      - uses: Swatinem/rust-cache@v2
-
-      - uses: taiki-e/install-action@v2
+      # Advisories hard-fail (PLAN M4.5-c). No continue-on-error.
+      - uses: EmbarkStudios/cargo-deny-action@v2
         with:
-          tool: cargo-mutants
+          command: check
 
-      - name: mutants
-        run: ./scripts/mutants.sh run
-
-      - name: upload mutants.out
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: mutants-out
-          path: mutants.out
+  # cargo-mutants is local-only (slow). Run via ./scripts/mutants.sh.

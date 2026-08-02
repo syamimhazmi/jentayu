@@ -299,6 +299,30 @@ pub fn format_bps_pair(a: Option<f64>, b: Option<f64>) -> String {
     format!("{}/{}", format_bps(a), format_bps(b))
 }
 
+/// Build a snapshot view for prometheus/json export.
+///
+/// When neither filter nor top is set: full per-target inventory (host always
+/// kept). Collection order is preserved; `sort_by` is ignored for membership
+/// and order.
+///
+/// When either filter or top is set: apply [`filter_and_rank`] with `sort_by`
+/// (same ranking as table). Host metrics are always included.
+pub fn snapshot_for_export(
+    snapshot: &Snapshot,
+    name_filter: Option<&str>,
+    sort_by: SortBy,
+    top: Option<usize>,
+) -> Snapshot {
+    if name_filter.is_none() && top.is_none() {
+        return snapshot.clone();
+    }
+    Snapshot {
+        host: snapshot.host.clone(),
+        targets: filter_and_rank(&snapshot.targets, name_filter, sort_by, top),
+        sampled_at: snapshot.sampled_at,
+    }
+}
+
 /// Filter and rank samples.
 pub fn filter_and_rank(
     samples: &[ResourceSample],
@@ -712,5 +736,87 @@ mod tests {
         b.net_rx_bytes = 10_000;
         let ranked = filter_and_rank(&[a, b], None, SortBy::Network, Some(1));
         assert_eq!(ranked[0].name, "b");
+    }
+
+    fn multi_target_snapshot() -> Snapshot {
+        let at = Utc::now();
+        // Intentionally not sorted by CPU so order-preservation is testable.
+        let mut low = sample("low-cpu", 10.0, 100);
+        low.id = "1".into();
+        let mut mid = sample("nginx", 40.0, 200);
+        mid.id = "2".into();
+        let mut high = sample("nginx-worker", 90.0, 300);
+        high.id = "3".into();
+        Snapshot {
+            host: empty_host(at),
+            targets: vec![low, mid, high],
+            sampled_at: at,
+        }
+    }
+
+    #[test]
+    fn snapshot_for_export_no_filter_top_preserves_ids_and_order() {
+        let snap = multi_target_snapshot();
+        let out = snapshot_for_export(&snap, None, SortBy::Cpu, None);
+        let ids: Vec<_> = out.targets.iter().map(|t| t.id.as_str()).collect();
+        assert_eq!(ids, vec!["1", "2", "3"]);
+        assert_eq!(out.host.memory_total_bytes, snap.host.memory_total_bytes);
+        assert_eq!(out.sampled_at, snap.sampled_at);
+    }
+
+    #[test]
+    fn snapshot_for_export_sort_only_does_not_rerank() {
+        // Sort flag alone must not re-order when filter/top unset.
+        let snap = multi_target_snapshot();
+        let out = snapshot_for_export(&snap, None, SortBy::Cpu, None);
+        let names: Vec<_> = out.targets.iter().map(|t| t.name.as_str()).collect();
+        assert_eq!(names, vec!["low-cpu", "nginx", "nginx-worker"]);
+        // Contrasting: ranking would put high CPU first.
+        let ranked = filter_and_rank(&snap.targets, None, SortBy::Cpu, None);
+        assert_eq!(ranked[0].name, "nginx-worker");
+        assert_ne!(out.targets[0].name, ranked[0].name);
+    }
+
+    #[test]
+    fn snapshot_for_export_filter_only() {
+        let snap = multi_target_snapshot();
+        let out = snapshot_for_export(&snap, Some("nginx"), SortBy::Cpu, None);
+        assert_eq!(out.targets.len(), 2);
+        assert!(out.targets.iter().all(|t| t.name.contains("nginx")));
+        // Host always present
+        assert_eq!(out.host.memory_total_bytes, snap.host.memory_total_bytes);
+    }
+
+    #[test]
+    fn snapshot_for_export_top_only_after_sort() {
+        let snap = multi_target_snapshot();
+        let out = snapshot_for_export(&snap, None, SortBy::Cpu, Some(1));
+        assert_eq!(out.targets.len(), 1);
+        assert_eq!(out.targets[0].name, "nginx-worker");
+        assert!(out.host.memory_total_bytes > 0 || out.host.memory_total_bytes == 1);
+    }
+
+    #[test]
+    fn snapshot_for_export_filter_and_top() {
+        let snap = multi_target_snapshot();
+        let out = snapshot_for_export(&snap, Some("nginx"), SortBy::Cpu, Some(1));
+        assert_eq!(out.targets.len(), 1);
+        assert_eq!(out.targets[0].name, "nginx-worker");
+    }
+
+    #[test]
+    fn snapshot_for_export_top_zero_keeps_host_empty_targets() {
+        let snap = multi_target_snapshot();
+        let out = snapshot_for_export(&snap, None, SortBy::Cpu, Some(0));
+        assert!(out.targets.is_empty());
+        assert_eq!(out.host.memory_total_bytes, snap.host.memory_total_bytes);
+    }
+
+    #[test]
+    fn snapshot_for_export_filter_matches_nothing_keeps_host() {
+        let snap = multi_target_snapshot();
+        let out = snapshot_for_export(&snap, Some("zzz-no-match"), SortBy::Memory, None);
+        assert!(out.targets.is_empty());
+        assert_eq!(out.host.memory_total_bytes, snap.host.memory_total_bytes);
     }
 }

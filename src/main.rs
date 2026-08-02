@@ -7,7 +7,7 @@ use jentayu::cli::{Cli, Commands};
 use jentayu::collector::{CollectMode, Collector};
 use jentayu::display::{print_snapshot, run_tui};
 use jentayu::export::{write_json, write_prometheus};
-use jentayu::metrics::SortBy;
+use jentayu::metrics::{snapshot_for_export, SortBy};
 use std::time::Duration;
 use tracing_subscriber::EnvFilter;
 
@@ -64,26 +64,30 @@ async fn main() -> Result<()> {
 
         Commands::Prometheus { output } => {
             let snap = collector.snapshot().await;
-            let body = write_prometheus(&snap, output.as_deref())?;
+            let export_snap = snapshot_for_export(&snap, cli.filter.as_deref(), sort_by, cli.top);
+            let body = write_prometheus(&export_snap, output.as_deref())?;
 
             match output {
                 None => print!("{body}"),
                 Some(path) => eprintln!("wrote prometheus metrics to {}", path.display()),
             }
 
+            // Alerts always evaluate the full collected snapshot.
             let alerts = evaluate(&snap, &thresholds);
             print_alerts(&alerts);
         }
 
         Commands::Json { output } => {
             let snap = collector.snapshot().await;
-            let body = write_json(&snap, output.as_deref())?;
+            let export_snap = snapshot_for_export(&snap, cli.filter.as_deref(), sort_by, cli.top);
+            let body = write_json(&export_snap, output.as_deref())?;
 
             match output {
                 None => println!("{body}"),
                 Some(path) => eprintln!("wrote json snapshot to {}", path.display()),
             }
 
+            // Alerts always evaluate the full collected snapshot.
             let alerts = evaluate(&snap, &thresholds);
             print_alerts(&alerts);
         }
