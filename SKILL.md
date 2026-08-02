@@ -14,10 +14,15 @@ memory, disk, and network for host processes and Docker containers.
 
 ## Always read first
 
-1. `AGENT.md` — stack, layout, rules
+1. `AGENT.md` — stack, layout, rules, **git branches** (`carbon` = staging, `master` = prod)
 2. `QUALITY.md` — **binding** extreme constraints (DoD, unit/Gherkin/QA/metrics/mutation/coverage)
 3. `PLAN.md` — milestones and non-goals
 4. `../CONTAINER_RESOURCE_MONITOR_MVP.md` — original product brief
+
+## Branches
+
+- **Base PRs on `carbon`** (staging). Promote to **`master`** (prod) only when shipping.
+- Do not push straight to protected `carbon`/`master`; topic branch → PR → `carbon`.
 
 ## Codename
 
