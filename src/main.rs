@@ -8,6 +8,7 @@ use jentayu::collector::{CollectMode, Collector};
 use jentayu::display::{print_snapshot, run_tui};
 use jentayu::export::{write_json, write_prometheus};
 use jentayu::metrics::{snapshot_for_export, SortBy};
+use jentayu::serve::{build_serve_config, run as run_serve};
 use std::time::Duration;
 use tracing_subscriber::EnvFilter;
 
@@ -90,6 +91,22 @@ async fn main() -> Result<()> {
             // Alerts always evaluate the full collected snapshot.
             let alerts = evaluate(&snap, &thresholds);
             print_alerts(&alerts);
+        }
+
+        Commands::Serve {
+            bind,
+            allow_remote,
+            token_file,
+        } => {
+            let config = build_serve_config(
+                &bind,
+                allow_remote,
+                token_file.as_deref(),
+                cli.filter.clone(),
+                sort_by,
+                cli.top,
+            )?;
+            run_serve(config, collector).await?;
         }
     }
 

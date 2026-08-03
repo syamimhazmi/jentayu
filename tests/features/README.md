@@ -14,7 +14,7 @@ cargo test --test features
 | Detail | Value |
 | ------ | ----- |
 | Harness | `tests/features_runner.rs` (`harness = false`) |
-| Wired | `filter_and_rank`, `alerts`, `prometheus_export` (no `@wip` tag) |
+| Wired | `filter_and_rank`, `alerts`, `prometheus_export`, `serve` (no `@wip` tag) |
 | Deferred | Features tagged `@wip` — still living specs; covered by mapped Rust tests until steps land |
 
 Adding a new executable scenario: write/adjust the `.feature` step text, implement
@@ -27,7 +27,8 @@ Adding a new executable scenario: write/adjust the `.feature` step text, impleme
 | `filter_and_rank.feature` | filter, sort, top-N | **cucumber** + `tests/filter_rank.rs` + `src/metrics.rs` unit tests |
 | `alerts.feature` | CPU/memory thresholds | **cucumber** + `src/alert.rs` unit tests |
 | `prometheus_export.feature` | `jentayu_*` exposition; filter/top export ranking; full inventory when unset | **cucumber** + `src/export/prometheus.rs` + `snapshot_for_export` unit tests |
-| `cli_modes.feature` | once / watch / tui / prometheus / json | `@wip` — manual smoke + future CLI integration tests |
+| `serve.feature` | serve top default 50 / hard cap 500; always-rank; bind dual-gate | **cucumber** + `src/serve/policy.rs` unit tests; HTTP auth/503 in `src/serve/mod.rs` tests |
+| `cli_modes.feature` | once / watch / tui / prometheus / json / serve | `@wip` — manual smoke + future CLI integration tests; serve HTTP covered in `src/serve/mod.rs` |
 | `docker_optional.feature` | daemon down still monitors processes | `@wip` — `tests/docker_mock.rs` (`disabled_docker_*`, `containers_only_with_disabled_*`) |
 | `docker_integration.feature` | mock Docker list/stats; optional live socket | `@wip` — `tests/docker_mock.rs`; `tests/docker_live.rs` (`--features docker-integration`) |
 | `container_stats_fanout.feature` | concurrent stats cap (8), skip failures | `@wip` — `src/collector/container.rs` unit tests |

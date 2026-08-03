@@ -56,6 +56,7 @@ A change is **not done** until all of the following are true (or each skip is **
 | `metrics` | `filter_and_rank`, sort keys, filter semantics |
 | `alert` | threshold evaluate, boundary equality |
 | `export/prometheus` | metric names (`jentayu_`), labels, sample lines |
+| `serve/policy` | default top 50, hard cap 500, bind dual-gate, bearer parse |
 | Container CPU math | Docker-compatible percent formula helpers |
 
 ---
@@ -76,10 +77,11 @@ Feature: …
 
 ### Scope that needs scenarios
 
-- CLI modes: `once`, `watch`, `tui`, `prometheus`, `json`
+- CLI modes: `once`, `watch`, `tui`, `prometheus`, `json`, `serve`
 - Filters (`--filter`), top-N (`--top`), sort (`--sort`)
 - Alerts (`--alert-cpu`, `--alert-mem`)
 - Export formats (Prometheus prefix, JSON shape at high level)
+- Serve policy: default top/hard cap, bind dual-gate (executable Gherkin + unit HTTP auth/503)
 - Docker optional: daemon down ⇒ process monitoring still works
 
 ### Rules
@@ -97,6 +99,7 @@ tests/
 │   ├── filter_and_rank.feature   # cucumber-wired
 │   ├── alerts.feature            # cucumber-wired
 │   ├── prometheus_export.feature # cucumber-wired
+│   ├── serve.feature             # cucumber-wired (top/cap/bind policy)
 │   ├── cli_modes.feature         # @wip living spec
 │   └── docker_optional.feature   # @wip + docker_mock tests
 ├── features_runner.rs      # cucumber harness (cargo test --test features)
@@ -182,7 +185,7 @@ If the suite would still pass after such a mutation, **strengthen asserts**.
 
 ### Tooling (M4 — required when pure modules change)
 
-Config: [`.cargo/mutants.toml`](./.cargo/mutants.toml) (examine `metrics`, `alert`, `export/prometheus`, container CPU math).
+Config: [`.cargo/mutants.toml`](./.cargo/mutants.toml) (examine `metrics`, `alert`, `export/prometheus`, `util`, `serve/policy`; optional container CPU via script target).
 
 Install (once):
 
@@ -197,12 +200,13 @@ Commands:
 ./scripts/mutants.sh list         # list mutants only
 ./scripts/mutants.sh in-diff      # mutants in git diff vs HEAD
 ./scripts/mutants.sh metrics      # single file
+./scripts/mutants.sh policy       # src/serve/policy.rs
 cargo mutants --list              # same list via cargo
 ```
 
 - On pure-logic changes: run `./scripts/mutants.sh` (or at least `in-diff` / the touched file) and **fix high-value MISSED mutants**.
 - Do not chase noise (display formatting, Docker socket I/O) — those are excluded by config.
-- CI job `mutants` runs the same pure-module set; survivors fail the job.
+- Mutants are **local-only** (too slow for CI hard-fail); CI enforces fmt/clippy/test/release/pure llvm-cov.
 
 ### Minimum mutation-minded targets
 
@@ -296,4 +300,4 @@ rustup component add llvm-tools-preview rustfmt clippy
 cargo install cargo-llvm-cov cargo-mutants --locked
 ```
 
-CI: [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) runs fmt, clippy, test, release, pure llvm-cov, and cargo-mutants.
+CI: [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) runs fmt, clippy, test, release, and pure llvm-cov. Run `cargo-mutants` locally via `./scripts/mutants.sh`.

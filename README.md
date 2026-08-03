@@ -18,6 +18,7 @@ Based on [`CONTAINER_RESOURCE_MONITOR_MVP.md`](../CONTAINER_RESOURCE_MONITOR_MVP
 - Interactive **TUI** (ratatui)
 - **Prometheus** text export (`*_bytes_total` counters + `*_bytes_per_second` gauges) and **JSON** snapshots
 - Optional **threshold alerts** (`--alert-cpu`, `--alert-mem`)
+- **HTTP scrape** (`jentayu serve`) — `GET /metrics` on loopback with ranking caps
 - Docker is optional — process monitoring works without the daemon
 
 ## Quick start
@@ -46,6 +47,7 @@ jentayu --help
 | `jentayu tui`                  | Interactive dashboard        |
 | `jentayu prometheus [-o file]` | Prometheus exposition format |
 | `jentayu json [-o file]`       | JSON snapshot                |
+| `jentayu serve`                | HTTP scrape: `GET /metrics` on `127.0.0.1:9105` |
 
 ### Export ranking (`prometheus` / `json`)
 
@@ -60,6 +62,30 @@ jentayu --help
 Destination path must be **trusted** (root + untrusted `-o` is unsupported).
 
 See [SECURITY.md](./SECURITY.md) for privilege and disclosure details.
+
+### Serve (`jentayu serve`)
+
+Local Prometheus scrape endpoint (M5-a). **Not** the same ranking policy as one-shot `prometheus`/`json`.
+
+| Setting | Behavior |
+| ------- | -------- |
+| Default bind | `127.0.0.1:9105` (`--bind <ip:port>`, **IP literals only** — no hostnames) |
+| Path | `GET /metrics` only (`/healths` not shipped) |
+| Ranking | **Always** ranks: default top **50** if `-n` unset; hard cap **500** |
+| `-i` | Ignored (pull model) |
+| Auth | Optional on loopback. Env `JENTAYU_METRICS_TOKEN` or `--token-file`. When set, require `Authorization: Bearer …` |
+| Non-loopback | Requires **both** `--allow-remote` and auth (refused at startup otherwise) |
+| Collect budget | Cooperative **2s** → HTTP **503** (no partial metrics); sync process sample may overrun |
+
+```bash
+jentayu serve
+curl -sS http://127.0.0.1:9105/metrics | head
+jentayu serve -n 20 -f nginx
+JENTAYU_METRICS_TOKEN=secret jentayu serve
+curl -sS -H 'Authorization: Bearer secret' http://127.0.0.1:9105/metrics | head
+```
+
+Do **not** use open binds as a default. Remote listen only with auth + `--allow-remote` (TLS is out of scope — terminate at a reverse proxy if needed).
 
 ### Global flags
 
@@ -92,7 +118,7 @@ See [SECURITY.md](./SECURITY.md) for privilege and disclosure details.
 | [AGENT.md](./AGENT.md)               | Instructions for AI agents                               |
 | [QUALITY.md](./QUALITY.md)           | Extreme quality constraints (binding Definition of Done) |
 | [PLAN.md](./PLAN.md)                 | Roadmap & milestones                                     |
-| [SECURITY.md](./SECURITY.md)         | Security notes (privilege, export, `-o`, planned serve)  |
+| [SECURITY.md](./SECURITY.md)         | Security notes (privilege, export, `-o`, serve)          |
 | [SKILL.md](./SKILL.md)               | Grok/Claude skill definition                             |
 | [tests/features/](./tests/features/) | Gherkin behavior scenarios                               |
 
@@ -108,6 +134,12 @@ CLI → Collector (host + processes + Docker)
 Key crates: `sysinfo`, `bollard`, `clap`, `tokio`, `ratatui`, `crossterm`.
 
 ## Development
+
+Default `[profile.release]` is **size-oriented** (`opt-level = "z"`, LTO, strip, `panic = "abort"`). For local speed experiments without changing the size-first default:
+
+```bash
+cargo build --profile release-fast
+```
 
 ```bash
 cargo fmt --check

@@ -21,15 +21,16 @@ if ! command -v cargo-llvm-cov >/dev/null 2>&1 && ! cargo llvm-cov --version >/d
 fi
 
 # Ignore OS/Docker/UI wiring when measuring pure-logic coverage.
-PURE_IGNORE='(main\.rs|cli\.rs|lib\.rs|error\.rs|display/|collector/|export/mod\.rs)'
+# Ignore OS/Docker/UI/HTTP wiring; keep pure modules (metrics, alert, prometheus, util, serve/policy).
+PURE_IGNORE='(main\.rs|cli\.rs|lib\.rs|error\.rs|display/|collector/|export/mod\.rs|serve/mod\.rs|serve/config\.rs)'
 
-# Floor for pure modules (metrics + alert + prometheus). Raise as tests improve.
+# Floor for pure modules (metrics, alert, prometheus, util, serve/policy).
 # Baseline ~86% lines (2026-07); keep a modest margin for flaky platform diffs.
 PURE_FAIL_UNDER_LINES="${PURE_FAIL_UNDER_LINES:-80}"
 
 case "$MODE" in
   pure)
-    echo "==> llvm-cov (pure: metrics, alert, prometheus) fail-under-lines=${PURE_FAIL_UNDER_LINES}"
+    echo "==> llvm-cov (pure: metrics, alert, prometheus, util, serve/policy) fail-under-lines=${PURE_FAIL_UNDER_LINES}"
     cargo llvm-cov --lib --tests --summary-only \
       --ignore-filename-regex "$PURE_IGNORE" \
       --fail-under-lines "$PURE_FAIL_UNDER_LINES"

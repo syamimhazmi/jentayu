@@ -11,6 +11,7 @@ examine_globs = [
     "src/alert.rs",
     "src/export/prometheus.rs",
     "src/util.rs",
+    "src/serve/policy.rs",
 ]
 
 # Never mutate binary wiring or UI (noisy / hard to unit-kill).
@@ -20,6 +21,8 @@ exclude_globs = [
     "src/display/**/*.rs",
     "src/collector/**/*.rs",
     "src/export/mod.rs",
+    "src/serve/mod.rs",
+    "src/serve/config.rs",
     "src/error.rs",
     "src/lib.rs",
 ]

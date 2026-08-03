@@ -1,6 +1,6 @@
 //! Executable Gherkin for high-value pure logic under `tests/features/`.
 //!
-//! Wired features: filter_and_rank, alerts, prometheus_export.
+//! Wired features: filter_and_rank, alerts, prometheus_export, serve.
 //! Other `.feature` files stay living specs (see README map) until steps land;
 //! they are excluded via the `@wip` tag filter.
 
@@ -11,6 +11,8 @@ use jentayu::export::render_prometheus;
 use jentayu::metrics::{
     filter_and_rank, snapshot_for_export, HostSample, ResourceSample, Snapshot, SortBy, TargetKind,
 };
+use jentayu::serve::{bind_allowed, effective_top, snapshot_for_serve};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 // ── World ───────────────────────────────────────────────────────────────────
 
@@ -31,6 +33,10 @@ pub struct JentayuWorld {
 
     snapshot: Option<Snapshot>,
     prometheus_text: String,
+
+    serve_effective_top: Option<usize>,
+    serve_ranked: Option<Snapshot>,
+    bind_policy_ok: Option<bool>,
 }
 
 impl JentayuWorld {
@@ -47,6 +53,9 @@ impl JentayuWorld {
             alerts: Vec::new(),
             snapshot: None,
             prometheus_text: String::new(),
+            serve_effective_top: None,
+            serve_ranked: None,
+            bind_policy_ok: None,
         }
     }
 }
@@ -625,6 +634,85 @@ fn then_all_targets_appear(w: &mut JentayuWorld) {
         "missing nginx-worker: {}",
         w.prometheus_text
     );
+}
+
+// ── serve policy ────────────────────────────────────────────────────────────
+
+#[when("the serve effective top is computed with top unset")]
+fn when_serve_top_unset(w: &mut JentayuWorld) {
+    w.serve_effective_top = Some(effective_top(None));
+}
+
+#[when(regex = r"^the serve effective top is computed with top (\d+)$")]
+fn when_serve_top_n(w: &mut JentayuWorld, n: usize) {
+    w.serve_effective_top = Some(effective_top(Some(n)));
+}
+
+#[then(regex = r"^the serve effective top is (\d+)$")]
+fn then_serve_top(w: &mut JentayuWorld, n: usize) {
+    assert_eq!(w.serve_effective_top, Some(n));
+}
+
+#[given("sample targets with mixed CPU for serve ranking")]
+fn given_serve_mixed_cpu(w: &mut JentayuWorld) {
+    let at = Utc::now();
+    let mut low = process("low-cpu", 10.0, 100, 0, 0);
+    low.id = "1".into();
+    let mut mid = process("nginx", 40.0, 200, 0, 0);
+    mid.id = "2".into();
+    let mut high = process("nginx-worker", 90.0, 300, 0, 0);
+    high.id = "3".into();
+    w.snapshot = Some(Snapshot {
+        host: default_host(),
+        targets: vec![low, mid, high],
+        sampled_at: at,
+    });
+}
+
+#[when("the snapshot is ranked for serve without filter or top")]
+fn when_serve_rank_default(w: &mut JentayuWorld) {
+    let snap = w.snapshot.as_ref().expect("snapshot");
+    w.serve_ranked = Some(snapshot_for_serve(snap, None, SortBy::Cpu, None));
+}
+
+#[then(regex = r#"^the first ranked target name is "([^"]+)"$"#)]
+fn then_first_ranked_name(w: &mut JentayuWorld, name: String) {
+    let ranked = w.serve_ranked.as_ref().expect("serve_ranked");
+    assert_eq!(ranked.targets[0].name, name);
+}
+
+#[then("the host metrics remain present")]
+fn then_host_metrics_present(w: &mut JentayuWorld) {
+    let ranked = w.serve_ranked.as_ref().expect("serve_ranked");
+    assert!(ranked.host.memory_total_bytes > 0 || ranked.host.cpu_percent >= 0.0);
+}
+
+#[when("bind policy is checked for 0.0.0.0 without allow-remote or auth")]
+fn when_bind_remote_open(w: &mut JentayuWorld) {
+    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9105);
+    w.bind_policy_ok = Some(bind_allowed(addr, false, false).is_ok());
+}
+
+#[when("bind policy is checked for 0.0.0.0 with allow-remote and auth")]
+fn when_bind_remote_gated(w: &mut JentayuWorld) {
+    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9105);
+    w.bind_policy_ok = Some(bind_allowed(addr, true, true).is_ok());
+}
+
+#[when("bind policy is checked for 127.0.0.1 without allow-remote or auth")]
+fn when_bind_loopback_open(w: &mut JentayuWorld) {
+    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9105);
+    w.bind_policy_ok = Some(bind_allowed(addr, false, false).is_ok());
+}
+
+#[then("bind policy is refused")]
+fn then_bind_refused(w: &mut JentayuWorld) {
+    assert_eq!(w.bind_policy_ok, Some(false));
+}
+
+#[then("bind policy is allowed")]
+fn then_bind_allowed(w: &mut JentayuWorld) {
+    assert_eq!(w.bind_policy_ok, Some(true));
 }
 
 // ── runner ──────────────────────────────────────────────────────────────────

@@ -55,18 +55,32 @@ Prometheus label escaping (`escape_label`) is orthogonal and unchanged;
 export inventory strings are **not** control-sanitized (terminal injection
 only).
 
-## Planned `serve` (M5 — not shipped)
+## `serve` scrape server (M5-a — shipped)
 
-When HTTP scrape lands, the **default bind must be `127.0.0.1`** (loopback),
-not all interfaces. Metrics remain confidential inventory. See PLAN.md M5
-security requirements (cardinality cap, timeouts, auth before non-localhost).
+| Control | Behavior |
+| ------- | -------- |
+| Default bind | `127.0.0.1:9105` (loopback). `--bind` accepts **IP literals only** (no DNS). |
+| Path | `GET /metrics` Prometheus text (`jentayu_*`). `/healths` not shipped. |
+| Ranking | Always rank: default top **50**, hard cap **500** (independent of CLI `prometheus`/`json` full-dump when unset). |
+| Auth | Optional on loopback. Bearer via `JENTAYU_METRICS_TOKEN` (wins) or `--token-file` (max 8 KiB, load once). When configured, every scrape needs `Authorization: Bearer …`. |
+| Non-loopback | Startup refuse unless **both** `--allow-remote` and auth are set. |
+| Timeout | Cooperative **2s** collect budget → **503** with no metric series. Sync `sysinfo` / process-net work may overrun the budget and still hold the collector lock — residual self-DoS under dense PID lists. |
+| Metrics confidentiality | Process/container names and IDs remain sensitive inventory. Enabling remote bind exposes that inventory to the network; TLS is out of scope (reverse-proxy assumption). |
+
+### Residual risks (serve)
+
+| Risk | Note |
+| ---- | ---- |
+| Unauthenticated loopback | Intentional local Prometheus agent model; multi-user machines can scrape each other’s metrics on 127.0.0.1 |
+| Cooperative timeout | Not a hard abort of CPU-bound process sampling |
+| No TLS | Operators who need encryption must terminate TLS elsewhere after dual-gate remote bind |
 
 ## Supply chain (M4.5-c)
 
 - **CI:** `cargo deny check` runs on every PR/push (advisories hard-fail; licenses allowlist; crates.io-only sources — no unexpected git deps).
 - **Config:** root [`deny.toml`](./deny.toml). Local: `cargo install cargo-deny --locked && cargo deny check`.
 - **Updates:** Dependabot weekly for Cargo and GitHub Actions (`.github/dependabot.yml`).
-- **Tokio:** jentayu enables only `macros`, `rt-multi-thread`, and `time` (not `full`); bollard still unifies net/io features it needs.
+- **Tokio:** jentayu enables `macros`, `rt-multi-thread`, `time`, `net`, `sync`, `signal`, `io-util` (not `full`); bollard still unifies additional net/io features it needs.
 - **Accepted license outliers in the tree:** Unicode-3.0 (ICU data), BlueOak-1.0.0 (synthez), WTFPL (terminfo via TUI stack), plus common duals (Unlicense/MIT, Zlib, …).
 
 ## Residual risks (accepted for M4.5)
@@ -77,7 +91,7 @@ security requirements (cardinality cap, timeouts, auth before non-localhost).
 | Concurrent `-o` same path     | Last writer wins; CLI single-user assumption                                                                                                                                               |
 | Full export without `-f`/`-n` | Intentional; documented sensitive                                                                                                                                                          |
 | Raw `Alert.target_name`       | Message + `print_alerts` sanitized; field stays raw                                                                                                                                        |
-| TUI panic restore             | **Shipped (M4.5-b):** Drop → `ratatui::restore`; `try_init` installs panic hook. Residual: `panic=abort` skips Drop (hook still runs if installed); restore failures only logged to stderr |
+| TUI panic restore             | **Shipped (M4.5-b):** Drop → `ratatui::restore`; `try_init` installs panic hook. Residual: release sets `panic = "abort"` (skips Drop; hook still runs if installed); restore failures only logged to stderr |
 | Supply chain (S9)             | **Mitigated (M4.5-c):** cargo-deny CI + Dependabot; residual: new advisories can fail CI overnight; license allowlist may need updates when deps change                                   |
 
 ## See also

@@ -49,7 +49,7 @@ Crates.io / git tags: optional until first public release; prefer semver above.
 ### Later (not blocking M4.5)
 
 - [ ] Cross-platform CI (Linux primary; macOS smoke — definition under M4.5 Should)
-- [ ] Optional HTTP `/metrics` scrape server (M5; localhost default)
+- [x] Optional HTTP `/metrics` scrape server (M5-a; localhost default, caps, dual-gate auth)
 - [ ] SQLite historical sampling (M5)
 
 ## Privilege model
@@ -132,7 +132,7 @@ Treat M5 network features as a **security milestone**, not only a product milest
 | Stats concurrency          | `MAX_CONCURRENT_STATS = 8` + tests                         |
 | Prometheus labels          | `escape_label` for `\`, `"`, `\n` + unit tests             |
 | No shell / `Command`       | No classic injection surface in collectors                 |
-| No listen socket yet       | No remote network attack surface until `serve`             |
+| No open non-loopback scrape | M5-a ships loopback-only by default; dual-gate for remote |
 | Saturating counters        | Overflow does not panic                                    |
 | Filter is substring        | No regex → no ReDoS                                        |
 | Export process _name_ only | Do not add full argv / environ without an explicit design  |
@@ -286,19 +286,19 @@ Recommended product order (security-aware):
 | **Docker TCP / `DOCKER_HOST`** | If CLI-exposed: document plaintext risk; prefer TLS non-local; default remains local socket; `connect_http` OK for tests.                                                                                                                                           |
 | **Container lifecycle**        | Non-goal unless dedicated audited subcommand — no start/stop/remove/exec from serve or dashboard.                                                                                                                                                                   |
 
-#### serve defaults (draft — lock in M5-a PR description before coding)
+#### serve defaults (**locked M5-a**)
 
-| Setting                   | Draft default                                                                                                                                   |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| Bind                      | `127.0.0.1:9105` (Prometheus-adjacent; override with `--bind <addr:port>`)                                                                      |
-| Global flags              | Reuse `-f`, `-n`, `-s`, `-i`                                                                                                                    |
-| Default top if `-n` unset | **50** (lock or change in M5-a; independent of CLI export full-dump policy)                                                                     |
-| Hard cap                  | Max targets per scrape (e.g. **500**) even if flags ask for more — self-DoS guard                                                               |
-| Handler timeout           | Collect budget ~**2s**; on timeout: **503** (prefer simple) or last-good cache (if implemented, document staleness)                             |
-| Non-localhost bind        | **Refuse** unless explicit override **and** auth configured (bearer token via env/file) **or** Unix-socket-only mode — pick exact flags in M5-a |
-| Paths                     | `GET /metrics` Prometheus text; optional `GET /healthz` later                                                                                   |
-| Series budget (guidance)  | Host gauges + ~fixed metric names × N targets; label keys stay `kind`, `id`, `name`                                                             |
-| Tests                     | Default bind is loopback; `/metrics` contains `jentayu_`; open bind without auth fails or is impossible by construction                         |
+| Setting                   | Locked value                                                                                                                                   |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Bind                      | `127.0.0.1:9105`; `--bind` is **IP literal** `SocketAddr` only (no DNS)                                                                        |
+| Global flags              | Reuse `-f`, `-n`, `-s`, collect mode, `-v`. **Ignore `-i`**. Alert flags no-op on serve                                                         |
+| Default top if `-n` unset | **50** (serve only; independent of CLI export full-dump policy)                                                                                |
+| Hard cap                  | **500** targets per scrape                                                                                                                     |
+| Handler timeout           | Cooperative **2s** (test-injectable); **503** plain text, no series; sync process sample may overrun                                           |
+| Non-localhost bind        | **Refuse** unless **both** `--allow-remote` **and** Bearer auth (`JENTAYU_METRICS_TOKEN` or `--token-file`)                                    |
+| Paths                     | `GET /metrics` only; `/healths` deferred                                                                                                       |
+| Series budget (guidance)  | Host gauges + ~fixed metric names × N targets; label keys stay `kind`, `id`, `name`                                                            |
+| Tests                     | Loopback `/metrics` + `jentayu_`; auth matrix; injectable timeout 503; bind dual-gate unit/Gherkin                                             |
 
 #### M5 sketch (non-normative CLI)
 
@@ -384,9 +384,9 @@ jentayu history --since 1h
 | Prometheus/JSON ranked vs full?                            | **Locked** in M4.5 decision                       | M4.5-a                                  |
 | Default `--top` in watch/TUI when unset?                   | Lean yes (25–50); not Must                        | M4.5-b-opt / early M5                   |
 | Bundle static binary for node agents?                      | Desirable post-serve                              | Packaging milestone                     |
-| `serve` auth: bearer vs Unix socket vs reverse-proxy-only? | Localhost first; exact non-localhost rule in M5-a | Before recommending open bind           |
-| Alert hysteresis default?                                  | TBD (percent band or consecutive breaches)        | Alerts v2 design                        |
-| Serve default top 50 / hard cap 500 / 2s timeout?          | Draft in serve defaults table                     | Lock in M5-a PR                         |
+| `serve` auth: bearer vs Unix socket vs reverse-proxy-only? | **Locked M5-a:** Bearer env/file; dual gate for non-loopback | Done (Unix socket deferred) |
+| Alert hysteresis default?                                  | TBD (percent band or consecutive breaches)                   | Alerts v2 design             |
+| Serve default top 50 / hard cap 500 / 2s timeout?          | **Locked M5-a** (timeout cooperative)                        | Done                         |
 
 ## Decision log
 
@@ -401,6 +401,7 @@ jentayu history --since 1h
 | 2026-07-31 | `serve` default bind **127.0.0.1:9105**; never example `0.0.0.0` as default.                                                                        |
 | 2026-08-01 | **M4.5 Must-ship complete** (a + b). M5 kick-off unblocked. Should items (c, b-opt, macOS CI, …) remain optional.                                   |
 | 2026-08-01 | **M4.5-c shipped:** cargo-deny CI (advisories hard-fail), Dependabot weekly, tokio features narrowed (no `full`).                                   |
+| 2026-08-03 | **M5-a locked/shipped:** bind `127.0.0.1:9105` (SocketAddr IP only); serve top 50 / hard cap 500; cooperative 2s → 503; dual gate `--allow-remote`+Bearer; env/file token; auth before lock; ignore `-i`; no `/healths`; crate `0.2.0`. |
 
 ## Timeline
 
@@ -408,8 +409,9 @@ jentayu history --since 1h
 | ---------------------- | ------------------------------------------------------------------------------------ | ----------------------------------- |
 | Weeks 1–2 (historical) | M0–M4 MVP + hardening + CI                                                           | Done                                |
 | M4.5                   | Pre-serve security gate (a sanitize/export/`-o`/docs + b TUI Drop guard)             | **Done** (2026-08-01)               |
-| Next                   | Optional M4.5 Should (b-opt default top, macOS CI) **or** M5 `serve`                 | Current (c supply-chain done)       |
-| After gate             | M5: `serve` (localhost) → alerts hysteresis → history → dashboard / cgroup as needed | **Unblocked** (Must-ship satisfied) |
+| M5-a                   | `jentayu serve` scrape (localhost, caps, auth dual-gate)                             | **Done (2026-08-03)**               |
+| Next                   | Optional M4.5 Should (b-opt default top, macOS CI); M5 alerts v2 / history           | After M5-a on carbon                |
+| After gate             | M5: alerts hysteresis → history → dashboard / cgroup as needed                       | **Unblocked** (Must-ship satisfied) |
 
 ## Related docs
 
