@@ -1,6 +1,6 @@
 [package]
 name = "jentayu"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Jentayu — real-time process & Docker container resource monitor (Nusantara codename)"
 license = "MIT"
@@ -21,23 +21,25 @@ path = "src/lib.rs"
 anyhow = "1.0.104"
 bollard = "0.21.0"
 bytesize = "2.4.2"
-chrono = { version = "0.4.45", features = ["serde"] }
+chrono = { version = "0.4.45", default-features = false, features = ["clock", "std", "serde"] }
 clap = { version = "4.6.4", features = ["derive"] }
 comfy-table = "7.2.2"
 crossterm = "0.29.0"
-futures-util = "0.3.33"
-ratatui = "0.30.2"
+futures-util = { version = "0.3.33", default-features = false, features = ["std", "async-await"] }
+ratatui = { version = "0.30.2", default-features = false, features = ["crossterm"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
-sysinfo = "0.39.6"
+sysinfo = { version = "0.39.6", default-features = false, features = ["system", "disk", "network"] }
 thiserror = "2.0.19"
 # Minimal surface: macros/rt for #[tokio::main|test], time for sleep.
 # Bollard still unifies net/io-util/sync/fs via feature unification.
-tokio = { version = "1.53.1", features = ["macros", "rt-multi-thread", "time"] }
+tokio = { version = "1.53.1", features = ["macros", "rt-multi-thread", "time", "net", "sync", "signal", "io-util"] }
+axum = { version = "0.8.9", default-features = false, features = ["http1", "tokio"] }
 tracing = "0.1.44"
-tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3.23", default-features = false, features = ["fmt", "std", "env-filter", "ansi"] }
 
 [dev-dependencies]
+tower = { version = "0.5", default-features = false, features = ["util"] }
 # Mock Docker Engine HTTP API for collector integration tests (always-on in CI).
 wiremock = "0.6"
 # Executable Gherkin for high-value pure scenarios under tests/features/.
@@ -56,6 +58,14 @@ default = []
 docker-integration = []
 
 [profile.release]
+opt-level = "z"
 lto = true
 codegen-units = 1
 strip = true
+panic = "abort"
+
+# Optional local perf: cargo build --profile release-fast
+[profile.release-fast]
+inherits = "release"
+opt-level = 3
+panic = "unwind"

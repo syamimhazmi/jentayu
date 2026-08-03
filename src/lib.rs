@@ -11,6 +11,7 @@ pub mod display;
 pub mod error;
 pub mod export;
 pub mod metrics;
+pub mod serve;
 pub mod util;
 
 pub use alert::{evaluate as evaluate_alerts, Alert, AlertThresholds};

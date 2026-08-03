@@ -1,5 +1,6 @@
 //! Command-line interface definition.
 
+use crate::serve::DEFAULT_BIND;
 use clap::{Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
 
@@ -92,6 +93,28 @@ pub enum Commands {
         /// Write to file instead of stdout (same-dir temp + rename; trusted path).
         #[arg(short, long)]
         output: Option<PathBuf>,
+    },
+
+    /// HTTP scrape server: `GET /metrics` (Prometheus text).
+    ///
+    /// Default bind `127.0.0.1:9105`. Serve ranking always applies: default
+    /// top **50** when `-n` is unset, hard cap **500**. This differs from
+    /// `prometheus`/`json` full inventory when neither `-f` nor `-n` is set.
+    /// Global `-i` is ignored (pull model). Alert flags are no-ops.
+    /// Non-loopback bind requires `--allow-remote` and a Bearer token
+    /// (`JENTAYU_METRICS_TOKEN` or `--token-file`).
+    Serve {
+        /// Listen address as IP literal:port (no hostname DNS). Default 127.0.0.1:9105.
+        #[arg(long, default_value = DEFAULT_BIND)]
+        bind: String,
+
+        /// Allow non-loopback bind (also requires auth via env or `--token-file`).
+        #[arg(long)]
+        allow_remote: bool,
+
+        /// File containing Bearer token (trimmed). Env `JENTAYU_METRICS_TOKEN` wins if set.
+        #[arg(long)]
+        token_file: Option<PathBuf>,
     },
 }
 

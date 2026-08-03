@@ -7,6 +7,7 @@
 #   ./scripts/mutants.sh metrics    # only src/metrics.rs
 #   ./scripts/mutants.sh alert
 #   ./scripts/mutants.sh prometheus
+#   ./scripts/mutants.sh policy     # only src/serve/policy.rs
 #   ./scripts/mutants.sh container
 set -euo pipefail
 
@@ -45,11 +46,14 @@ case "$MODE" in
   prometheus)
     cargo mutants "${COMMON[@]}" -f 'src/export/prometheus.rs'
     ;;
+  policy|serve)
+    cargo mutants "${COMMON[@]}" -f 'src/serve/policy.rs'
+    ;;
   container)
     cargo mutants "${COMMON[@]}" -f 'src/collector/container.rs'
     ;;
   *)
-    echo "usage: $0 [run|list|in-diff|metrics|alert|prometheus|container]" >&2
+    echo "usage: $0 [run|list|in-diff|metrics|alert|prometheus|policy|container]" >&2
     exit 2
     ;;
 esac

@@ -51,7 +51,7 @@ jentayu/
 ├── AGENT.md          ← you are here
 ├── QUALITY.md        ← extreme constraints (binding Definition of Done)
 ├── PLAN.md           ← roadmap & milestones
-├── SECURITY.md       ← privilege, export trust boundary, -o, planned serve
+├── SECURITY.md       ← privilege, export trust boundary, -o, serve (M5-a)
 ├── SKILL.md          ← Grok/Claude skill for this project
 ├── README.md
 ├── Cargo.toml
@@ -62,7 +62,7 @@ jentayu/
 ├── .github/workflows/ci.yml
 ├── tests/
 │   ├── filter_rank.rs
-│   ├── features_runner.rs  # cucumber-rs (filter/rank, alerts, prometheus)
+│   ├── features_runner.rs  # cucumber-rs (filter/rank, alerts, prometheus, serve)
 │   └── features/     # Gherkin scenarios + scenario→test map
 └── src/
     ├── main.rs       # CLI entry
@@ -81,8 +81,12 @@ jentayu/
     ├── display/
     │   ├── table.rs
     │   └── tui.rs
-    └── export/
-        └── prometheus.rs
+    ├── export/
+    │   └── prometheus.rs
+    └── serve/
+        ├── mod.rs      # axum HTTP edge (GET /metrics)
+        ├── config.rs   # bind parse, token load (I/O)
+        └── policy.rs   # pure bind/rank/auth helpers
 ```
 
 ## Working rules
@@ -91,7 +95,7 @@ jentayu/
 2. Prefer small, testable pure functions (`filter_and_rank`, `render_prometheus`, `evaluate` alerts).
 3. Docker must be **optional** — if the daemon is down, process/host monitoring still works.
 4. Never block the async runtime with long `std::thread::sleep` inside request handlers; collector warm-up sleeps on first construction are acceptable.
-5. Keep CLI UX stable: `once` (default), `watch`, `tui`, `prometheus`, `json`.
+5. Keep CLI UX stable: `once` (default), `watch`, `tui`, `prometheus`, `json`, `serve`.
 6. Metric names for Prometheus are prefixed with `jentayu_`.
 7. When changing public types in `metrics.rs`, update Prometheus export, unit tests, and Gherkin (if behavior-facing) together.
 8. **Quality is not optional.** Read and obey `QUALITY.md` on every change. Prefer shrinking scope over shipping untested code.

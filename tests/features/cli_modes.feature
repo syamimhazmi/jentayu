@@ -29,3 +29,8 @@ Feature: CLI output modes
     Given a TTY is available
     When I run jentayu tui
     Then an interactive dashboard is shown until quit
+
+  Scenario: Serve mode listens for Prometheus scrapes
+    Given the jentayu binary is available
+    When I run jentayu serve on loopback
+    Then GET /metrics returns exposition text prefixed with jentayu_
