@@ -23,7 +23,7 @@ bollard = "0.21.0"
 bytesize = "2.4.2"
 chrono = { version = "0.4.45", features = ["serde"] }
 clap = { version = "4.6.4", features = ["derive"] }
-comfy-table = "7.2.2"
+comfy-table = "8.0.0"
 crossterm = "0.29.0"
 futures-util = "0.3.33"
 ratatui = "0.30.2"
