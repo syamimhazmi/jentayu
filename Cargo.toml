@@ -41,7 +41,7 @@ tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 # Mock Docker Engine HTTP API for collector integration tests (always-on in CI).
 wiremock = "0.6"
 # Executable Gherkin for high-value pure scenarios under tests/features/.
-cucumber = "0.21"
+cucumber = "0.23"
 futures = "0.3"
 
 [[test]]
